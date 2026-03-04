@@ -1,0 +1,51 @@
+import { pendingBusinesses } from "@/lib/mockData";
+import { toast } from "sonner";
+import { useState } from "react";
+
+export default function BusinessModeration() {
+  const [items, setItems] = useState(pendingBusinesses);
+
+  const handleAction = (id: string, action: "approve" | "reject") => {
+    setItems(prev => prev.filter(b => b.id !== id));
+    toast.success(action === "approve" ? "✅ Comercio aprobado" : "❌ Comercio rechazado");
+  };
+
+  return (
+    <div className="space-y-5 animate-fade-in">
+      <h1 className="text-2xl font-bold">🏢 Moderación de Comercios</h1>
+      {items.length === 0 ? (
+        <div className="text-center py-16"><p className="text-4xl mb-3">✅</p><p className="text-muted-foreground">No hay comercios pendientes</p></div>
+      ) : (
+        <div className="bg-card border border-border rounded-lg shadow-card overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Nombre</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Tipo</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Dueño</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Ubicación</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Fecha</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((b) => (
+                <tr key={b.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-3 font-medium">{b.name}</td>
+                  <td className="px-4 py-3 capitalize">{b.type}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{b.owner}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{b.location}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{b.date}</td>
+                  <td className="px-4 py-3 text-right space-x-2">
+                    <button onClick={() => handleAction(b.id, "approve")} className="px-3 py-1 rounded-lg text-xs font-medium bg-success/15 text-success hover:bg-success/25 transition-colors">Aprobar</button>
+                    <button onClick={() => handleAction(b.id, "reject")} className="px-3 py-1 rounded-lg text-xs font-medium bg-error/15 text-error hover:bg-error/25 transition-colors">Rechazar</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
