@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import { Plus, X, Loader2 } from "lucide-react";
+import { Plus, X, Loader2, Trash2 } from "lucide-react";
 import { businesses, formatMXN } from "@/lib/mockData";
-import { fetchProducts, addProduct, toggleProductAvailability } from "@/lib/supabaseService";
+import { fetchProducts, addProduct, toggleProductAvailability, deleteProduct } from "@/lib/supabaseService";
+import { useAuth } from "@/contexts/AuthContext";
+import PendingApproval from "@/components/PendingApproval";
 import { toast } from "sonner";
 
 const categories = [
@@ -13,12 +15,11 @@ const categories = [
   { value: "Otro", emoji: "📦" },
 ];
 
-// For demo mode, we use a placeholder business ID. 
-// In production, this comes from the logged-in user's business.
-const DEMO_BUSINESS_ID = "demo-business-001";
-
 export default function ProductManagement() {
-  const [productList, setProductList] = useState(businesses[0].products);
+  const { userBusiness, isDemoMode } = useAuth();
+  const businessId = userBusiness?.id;
+
+  const [productList, setProductList] = useState(isDemoMode ? businesses[0].products : []);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -32,8 +33,13 @@ export default function ProductManagement() {
   const [emoji, setEmoji] = useState("🥤");
 
   useEffect(() => {
-    fetchProducts().then(setProductList);
-  }, []);
+    if (userBusiness?.status === 'pendiente' && !isDemoMode) return;
+    fetchProducts(businessId, isDemoMode).then(setProductList);
+  }, [businessId, isDemoMode]);
+
+  if (userBusiness?.status === 'pendiente' && !isDemoMode) {
+    return <PendingApproval businessName={userBusiness?.name} />;
+  }
 
   const resetForm = () => {
     setName(""); setPrice(""); setCategory("Bebidas"); setStock("");
@@ -49,7 +55,7 @@ export default function ProductManagement() {
 
     setSaving(true);
     const result = await addProduct({
-      businessId: DEMO_BUSINESS_ID,
+      businessId: businessId || "demo-business-001",
       name,
       price: parseFloat(price),
       category,
@@ -94,6 +100,20 @@ export default function ProductManagement() {
       toast.error("Error al actualizar disponibilidad");
     } else {
       toast.success("✅ Disponibilidad actualizada");
+    }
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`¿Eliminar "${name}"? Esta acción no se puede deshacer.`)) return;
+
+    setProductList(prev => prev.filter(p => p.id !== id));
+    const result = await deleteProduct(id);
+    if (result.error) {
+      // Reload list on error
+      fetchProducts(businessId).then(setProductList);
+      toast.error(`Error al eliminar: ${result.error}`);
+    } else {
+      toast.success("Producto eliminado");
     }
   };
 
@@ -209,9 +229,15 @@ export default function ProductManagement() {
             </div>
             <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
               <span className="text-xs text-muted-foreground">Disponible</span>
-              <button onClick={() => toggleAvailable(p.id)} className={`w-10 h-5 rounded-full transition-colors ${p.available ? "bg-primary" : "bg-muted"}`}>
-                <div className={`w-4 h-4 rounded-full bg-primary-foreground shadow transition-transform ${p.available ? "translate-x-5" : "translate-x-0.5"}`} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => handleDelete(p.id, p.name)}
+                  className="p-1.5 rounded-lg text-error/60 hover:text-error hover:bg-error/10 transition-colors" title="Eliminar producto">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={() => toggleAvailable(p.id)} className={`w-10 h-5 rounded-full transition-colors ${p.available ? "bg-primary" : "bg-muted"}`}>
+                  <div className={`w-4 h-4 rounded-full bg-primary-foreground shadow transition-transform ${p.available ? "translate-x-5" : "translate-x-0.5"}`} />
+                </button>
+              </div>
             </div>
           </div>
         ))}

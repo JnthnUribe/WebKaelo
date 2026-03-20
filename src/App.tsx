@@ -24,12 +24,20 @@ import MyRoutes from "./pages/MyRoutes";
 import WalletPage from "./pages/WalletPage";
 import CreatorAnalytics from "./pages/CreatorAnalytics";
 import SettingsPage from "./pages/SettingsPage";
-import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { isLoggedIn, currentRole } = useAuth();
+  const { isLoggedIn, currentRole, loading } = useAuth();
+
+  // Show nothing while checking session — prevents flash of wrong page
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (
@@ -46,36 +54,51 @@ function AppRoutes() {
     creador: "/creador/rutas",
   };
 
+  // Role-guarded routes: users can only access their own role's pages
+  const home = roleHome[currentRole];
+
   return (
     <Routes>
       <Route element={<Layout />}>
-        {/* Admin routes */}
-        <Route path="/admin" element={<AdminPanel />} />
-        <Route path="/admin/usuarios" element={<UserManagement />} />
-        <Route path="/admin/rutas" element={<RouteModeration />} />
-        <Route path="/admin/comercios" element={<BusinessModeration />} />
-        <Route path="/admin/analytics" element={<AdminAnalytics />} />
+        {/* Admin routes — only for admin */}
+        {currentRole === "admin" && (
+          <>
+            <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/admin/usuarios" element={<UserManagement />} />
+            <Route path="/admin/rutas" element={<RouteModeration />} />
+            <Route path="/admin/comercios" element={<BusinessModeration />} />
+            <Route path="/admin/analytics" element={<AdminAnalytics />} />
+          </>
+        )}
 
-        {/* Merchant routes */}
-        <Route path="/comercio" element={<MerchantDashboard />} />
-        <Route path="/comercio/productos" element={<ProductManagement />} />
-        <Route path="/comercio/pedidos" element={<OrderManagement />} />
-        <Route path="/comercio/reviews" element={<MerchantReviews />} />
-        <Route path="/comercio/perfil" element={<BusinessProfile />} />
-        <Route path="/comercio/analytics" element={<MerchantAnalytics />} />
+        {/* Merchant routes — only for comercio */}
+        {currentRole === "comercio" && (
+          <>
+            <Route path="/comercio" element={<MerchantDashboard />} />
+            <Route path="/comercio/productos" element={<ProductManagement />} />
+            <Route path="/comercio/pedidos" element={<OrderManagement />} />
+            <Route path="/comercio/reviews" element={<MerchantReviews />} />
+            <Route path="/comercio/perfil" element={<BusinessProfile />} />
+            <Route path="/comercio/analytics" element={<MerchantAnalytics />} />
+          </>
+        )}
 
-        {/* Creator routes */}
-        <Route path="/creador/rutas" element={<MyRoutes />} />
-        <Route path="/creador/wallet" element={<WalletPage />} />
-        <Route path="/creador/analytics" element={<CreatorAnalytics />} />
+        {/* Creator routes — only for creador */}
+        {currentRole === "creador" && (
+          <>
+            <Route path="/creador/rutas" element={<MyRoutes />} />
+            <Route path="/creador/wallet" element={<WalletPage />} />
+            <Route path="/creador/analytics" element={<CreatorAnalytics />} />
+          </>
+        )}
 
         {/* Shared */}
         <Route path="/configuracion" element={<SettingsPage />} />
       </Route>
 
-      {/* Redirects */}
-      <Route path="/" element={<Navigate to={roleHome[currentRole]} replace />} />
-      <Route path="*" element={<NotFound />} />
+      {/* Any unmatched route → redirect to role home */}
+      <Route path="/" element={<Navigate to={home} replace />} />
+      <Route path="*" element={<Navigate to={home} replace />} />
     </Routes>
   );
 }

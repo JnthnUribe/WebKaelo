@@ -1,9 +1,10 @@
-import { ShoppingBag, DollarSign, Star, MessageSquare, Clock, Phone, ChevronRight } from "lucide-react";
+import { ShoppingBag, DollarSign, Star, MessageSquare, Clock, ChevronRight } from "lucide-react";
 import StatCard from "@/components/StatCard";
-import { merchantStats, orders as mockOrders, dailyOrders, formatMXN } from "@/lib/mockData";
-import { fetchOrders, fetchMerchantStats } from "@/lib/supabaseService";
+import PendingApproval from "@/components/PendingApproval";
+import { orders as mockOrders, formatMXN } from "@/lib/mockData";
+import { fetchOrders, fetchMerchantStats, updateOrderStatus, subscribeToOrders } from "@/lib/supabaseService";
+import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { toast } from "sonner";
 
 const statusStyles: Record<string, string> = {
@@ -26,61 +27,79 @@ const nextStatus: Record<string, string> = { pendiente: "confirmado", confirmado
 const nextLabel: Record<string, string> = { pendiente: "Confirmar", confirmado: "Preparar", preparando: "Marcar Listo", listo: "Entregar" };
 
 export default function MerchantDashboard() {
-  const [orderList, setOrderList] = useState(mockOrders);
-  const [stats, setStats] = useState(merchantStats);
+  const { userBusiness, isDemoMode } = useAuth();
+  const businessId = userBusiness?.id;
+  const businessName = userBusiness?.name || "Mi Comercio";
+  const isPending = userBusiness?.status === 'pendiente';
+
+  const [orderList, setOrderList] = useState(isDemoMode ? mockOrders : []);
+  const [stats, setStats] = useState({ ordersToday: 0, monthRevenue: 0, rating: 0, totalReviews: 0 });
   const [filter, setFilter] = useState("todos");
 
   useEffect(() => {
-    fetchOrders().then(setOrderList);
-    fetchMerchantStats().then(setStats);
-  }, []);
+    if (isPending && !isDemoMode) return;
+    fetchOrders(businessId, isDemoMode).then(setOrderList);
+    fetchMerchantStats(businessId, isDemoMode).then(setStats);
+  }, [businessId, isDemoMode, isPending]);
 
-  const advanceStatus = (id: string) => {
-    setOrderList(prev => prev.map(o => {
-      if (o.id === id && nextStatus[o.status]) {
-        toast.success(`${statusIcons[nextStatus[o.status]]} Pedido ${id} → ${nextStatus[o.status]}`);
-        return { ...o, status: nextStatus[o.status] as any };
-      }
-      return o;
-    }));
+  // Real-time order updates
+  useEffect(() => {
+    if (!businessId || isDemoMode) return;
+    const sub = subscribeToOrders(businessId, () => {
+      fetchOrders(businessId).then(setOrderList);
+    });
+    return () => sub.unsubscribe();
+  }, [businessId, isDemoMode]);
+
+  const advanceStatus = async (id: string) => {
+    const order = orderList.find(o => o.id === id);
+    if (!order || !nextStatus[order.status]) return;
+
+    const newStatus = nextStatus[order.status];
+
+    // Optimistic update
+    setOrderList(prev => prev.map(o =>
+      o.id === id ? { ...o, status: newStatus as any } : o
+    ));
+    toast.success(`${statusIcons[newStatus]} Pedido ${id} → ${newStatus}`);
+
+    // Persist to Supabase
+    const result = await updateOrderStatus(id, newStatus);
+    if (result.error) {
+      // Rollback on error
+      setOrderList(prev => prev.map(o =>
+        o.id === id ? { ...o, status: order.status } : o
+      ));
+      toast.error(`Error al actualizar: ${result.error}`);
+    }
   };
 
   const filtered = filter === "todos" ? orderList : orderList.filter(o => o.status === filter);
   const activeOrders = orderList.filter(o => !["entregado"].includes(o.status)).length;
 
+  if (isPending && !isDemoMode) {
+    return <PendingApproval businessName={businessName} />;
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold">🏪 Dashboard del Comercio</h1>
-        <p className="text-muted-foreground text-sm">Café Cenote · Calle 60 #482, Centro, Mérida</p>
+        <h1 className="text-2xl font-bold">Dashboard del Comercio</h1>
+        <p className="text-muted-foreground text-sm">{businessName}</p>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Pedidos activos" value={String(activeOrders)} icon={ShoppingBag} color="primary" />
-        <StatCard title="Ingresos del mes" value={formatMXN(stats.monthRevenue)} icon={DollarSign} color="accent" change={{ value: 18.5, label: "vs mes anterior" }} />
+        <StatCard title="Ingresos del mes" value={formatMXN(stats.monthRevenue)} icon={DollarSign} color="accent" />
         <StatCard title="Rating" value={`${stats.rating} ⭐`} icon={Star} color="secondary" />
-        <StatCard title="Reviews" value={String(stats.totalReviews)} icon={MessageSquare} color="success" change={{ value: 4 }} />
-      </div>
-
-      {/* Chart */}
-      <div className="bg-card border border-border rounded-xl p-5 shadow-card">
-        <h3 className="font-semibold mb-4">Pedidos por Día</h3>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={dailyOrders}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis dataKey="day" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-            <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-            <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))' }} />
-            <Bar dataKey="orders" fill="hsl(var(--accent))" radius={[6, 6, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        <StatCard title="Reviews" value={String(stats.totalReviews)} icon={MessageSquare} color="success" />
       </div>
 
       {/* Orders */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-lg">📋 Cola de Pedidos</h3>
+          <h3 className="font-semibold text-lg">Cola de Pedidos</h3>
           <div className="flex gap-1 bg-muted rounded-lg p-1">
             {["todos", "pendiente", "confirmado", "preparando", "listo"].map((f) => (
               <button key={f} onClick={() => setFilter(f)}
@@ -108,7 +127,7 @@ export default function MerchantDashboard() {
                 <div className="flex-1 min-w-[200px]">
                   {o.items.map((item, i) => (
                     <p key={i} className="text-sm text-muted-foreground">
-                      {item.qty}× {item.name} <span className="text-foreground font-medium">{formatMXN(item.price)}</span>
+                      {item.qty}x {item.name} <span className="text-foreground font-medium">{formatMXN(item.price)}</span>
                     </p>
                   ))}
                 </div>
@@ -136,8 +155,13 @@ export default function MerchantDashboard() {
             </div>
           ))}
           {filtered.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              <p className="text-sm">No hay pedidos con estado "{filter}"</p>
+            <div className="text-center py-12 text-muted-foreground">
+              <p className="text-3xl mb-2">📋</p>
+              <p className="text-sm font-medium">
+                {filter === "todos"
+                  ? "No hay pedidos aún. Cuando un ciclista haga un pedido desde la app, aparecerá aquí."
+                  : `No hay pedidos con estado "${filter}"`}
+              </p>
             </div>
           )}
         </div>

@@ -12,9 +12,16 @@ interface AuthUser {
     role: UserRole;
 }
 
+interface UserBusiness {
+    id: string;
+    name: string;
+    status: string;
+}
+
 interface AuthContextType {
     user: AuthUser;
     supabaseUser: User | null;
+    userBusiness: UserBusiness | null;
     currentRole: UserRole;
     setCurrentRole: (role: UserRole) => void;
     isLoggedIn: boolean;
@@ -55,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [isDemoMode, setIsDemoMode] = useState(false);
     const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
     const [realProfile, setRealProfile] = useState<AuthUser | null>(null);
+    const [userBusiness, setUserBusiness] = useState<UserBusiness | null>(null);
     const [loading, setLoading] = useState(true);
 
     // Listen for Supabase auth changes
@@ -64,14 +72,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
         }
 
+        // Safety timeout — never stay loading forever
+        const timeout = setTimeout(() => setLoading(false), 5000);
+
         // Check existing session
         supabase.auth.getSession().then(({ data: { session } }) => {
+            clearTimeout(timeout);
             if (session?.user) {
                 setSupabaseUser(session.user);
                 setIsLoggedIn(true);
                 setIsDemoMode(false);
                 loadProfile(session.user);
             }
+            setLoading(false);
+        }).catch(() => {
+            clearTimeout(timeout);
             setLoading(false);
         });
 
@@ -94,20 +109,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return () => subscription.unsubscribe();
     }, []);
 
+    function fallbackProfile(user: User): AuthUser {
+        const role: UserRole = user.email?.endsWith('@kaelo.mx') ? 'admin' : 'creador';
+        return {
+            id: user.id,
+            name: user.email || 'Usuario',
+            email: user.email || '',
+            avatar: `https://i.pravatar.cc/40?u=${user.id}`,
+            role,
+        };
+    }
+
     async function loadProfile(user: User) {
         try {
-            const { data } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', user.id)
-                .single();
+            // Race the profile query against a 4-second timeout
+            const result = await Promise.race([
+                supabase.from('profiles').select('*').eq('id', user.id).single(),
+                new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+            ]);
+
+            const data = result && 'data' in result ? result.data : null;
 
             if (data) {
-                // Determine role from profile flags
-                let role: UserRole = 'creador'; // default
-                if (data.is_business_owner) role = 'comercio';
-                // Check for admin (user_type field or specific email)
-                if (user.email?.endsWith('@kaelo.mx')) role = 'admin';
+                let role: UserRole = 'creador';
+
+                if (user.email?.endsWith('@kaelo.mx')) {
+                    role = 'admin';
+                } else if (data.is_business_owner) {
+                    role = 'comercio';
+                }
 
                 const profile: AuthUser = {
                     id: data.id,
@@ -119,9 +149,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                 setRealProfile(profile);
                 setCurrentRole(role);
+
+                // Load business data (non-blocking)
+                if (role === 'comercio') {
+                    supabase
+                        .from('businesses')
+                        .select('id, name, status')
+                        .eq('owner_id', user.id)
+                        .single()
+                        .then(({ data: biz }) => {
+                            if (biz) {
+                                setUserBusiness({ id: biz.id, name: biz.name, status: biz.status || 'pendiente' });
+                            }
+                        });
+                }
+            } else {
+                // No profile or timeout — use fallback
+                const fb = fallbackProfile(user);
+                setRealProfile(fb);
+                setCurrentRole(fb.role);
             }
         } catch (err) {
             console.warn('Could not load profile:', err);
+            const fb = fallbackProfile(user);
+            setRealProfile(fb);
+            setCurrentRole(fb.role);
         }
     }
 
@@ -132,6 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsDemoMode(true);
         setSupabaseUser(null);
         setRealProfile(null);
+        setUserBusiness(null);
     };
 
     // Real Supabase login
@@ -141,6 +194,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setLoading(true);
+        // Safety: never stay loading longer than 8 seconds
+        const safetyTimeout = setTimeout(() => setLoading(false), 8000);
+
         try {
             const { data, error } = await supabase.auth.signInWithPassword({
                 email,
@@ -148,6 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
 
             if (error) {
+                clearTimeout(safetyTimeout);
                 setLoading(false);
                 return { error: error.message };
             }
@@ -159,22 +216,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 await loadProfile(data.user);
             }
 
+            clearTimeout(safetyTimeout);
             setLoading(false);
             return { error: null };
         } catch (err: any) {
+            clearTimeout(safetyTimeout);
             setLoading(false);
             return { error: err.message || 'Error de conexión' };
         }
     };
 
     const logout = async () => {
-        if (!isDemoMode && isSupabaseConfigured) {
-            await supabase.auth.signOut();
-        }
+        // Clear React state first
         setIsLoggedIn(false);
         setIsDemoMode(false);
         setSupabaseUser(null);
         setRealProfile(null);
+        setUserBusiness(null);
+
+        if (!isDemoMode && isSupabaseConfigured) {
+            try {
+                await supabase.auth.signOut();
+            } catch {
+                // signOut failed — force clear localStorage
+            }
+        }
+
+        // Force clear Supabase session from localStorage regardless
+        Object.keys(localStorage).forEach((key) => {
+            if (key.startsWith('sb-') || key.includes('supabase')) {
+                localStorage.removeItem(key);
+            }
+        });
     };
 
     // Use real profile if available, otherwise demo profile
@@ -187,6 +260,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             value={{
                 user: currentUser,
                 supabaseUser,
+                userBusiness,
                 currentRole,
                 setCurrentRole: (role) => {
                     setCurrentRole(role);

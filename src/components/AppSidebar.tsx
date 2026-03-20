@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  BarChart3, Shield, FileCheck, Building2, Users, Settings,
+  BarChart3, Shield, FileCheck, Building2, Users,
   ShoppingBag, Package, ClipboardList, Star, Store,
   PenSquare, Wallet, TrendingUp,
-  ChevronLeft, ChevronRight, Bike, Menu, X, LogOut, ChevronsUpDown
+  ChevronLeft, ChevronRight, Bike, Menu, X, ChevronsUpDown
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth, type UserRole } from "@/contexts/AuthContext";
@@ -43,12 +43,6 @@ const sectionsByRole: Record<UserRole, NavSection[]> = {
         { title: "Analytics", icon: TrendingUp, path: "/admin/analytics" },
       ],
     },
-    {
-      label: "SISTEMA",
-      items: [
-        { title: "Configuración", icon: Settings, path: "/configuracion" },
-      ],
-    },
   ],
   comercio: [
     {
@@ -72,12 +66,6 @@ const sectionsByRole: Record<UserRole, NavSection[]> = {
         { title: "Analytics", icon: TrendingUp, path: "/comercio/analytics" },
       ],
     },
-    {
-      label: "SISTEMA",
-      items: [
-        { title: "Configuración", icon: Settings, path: "/configuracion" },
-      ],
-    },
   ],
   creador: [
     {
@@ -96,12 +84,6 @@ const sectionsByRole: Record<UserRole, NavSection[]> = {
       label: "ANALYTICS",
       items: [
         { title: "Analytics", icon: TrendingUp, path: "/creador/analytics" },
-      ],
-    },
-    {
-      label: "SISTEMA",
-      items: [
-        { title: "Configuración", icon: Settings, path: "/configuracion" },
       ],
     },
   ],
@@ -125,7 +107,7 @@ export default function AppSidebar() {
   const [showRoleSwitch, setShowRoleSwitch] = useState(false);
   const location = useLocation();
   const isMobile = useIsMobile();
-  const { user, currentRole, setCurrentRole, logout } = useAuth();
+  const { user, currentRole, setCurrentRole, isDemoMode } = useAuth();
 
   const sections = sectionsByRole[currentRole];
   const isActive = (path: string) => location.pathname === path;
@@ -146,49 +128,62 @@ export default function AppSidebar() {
         )}
       </div>
 
-      {/* Role indicator */}
+      {/* User info */}
       {!collapsed && (
         <div className="px-3 pt-3 pb-2 relative">
-          <button
-            onClick={() => setShowRoleSwitch(!showRoleSwitch)}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-          >
-            <div className={`p-1.5 rounded-lg bg-gradient-to-br ${roleColors[currentRole]}`}>
-              <ShoppingBag className="h-3.5 w-3.5 text-white" />
-            </div>
-            <div className="flex-1 text-left min-w-0">
-              <p className="text-xs font-semibold truncate">{user.name}</p>
-              <p className="text-[10px] text-muted-foreground">{roleLabels[currentRole]}</p>
-            </div>
-            <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          </button>
-
-          {/* Role switch dropdown */}
-          <AnimatePresence>
-            {showRoleSwitch && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="absolute left-3 right-3 top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-lg overflow-hidden"
+          {/* Demo role switcher — only visible via ?demo=true */}
+          {isDemoMode ? (
+            <>
+              <button
+                onClick={() => setShowRoleSwitch(!showRoleSwitch)}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
               >
-                <p className="px-3 py-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Cambiar rol (demo)</p>
-                {(["admin", "comercio", "creador"] as UserRole[]).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => { setCurrentRole(r); setShowRoleSwitch(false); }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors ${currentRole === r ? "bg-primary/10 text-primary" : "hover:bg-muted"
-                      }`}
+                <div className={`p-1.5 rounded-lg bg-gradient-to-br ${roleColors[currentRole]}`}>
+                  <ShoppingBag className="h-3.5 w-3.5 text-white" />
+                </div>
+                <div className="flex-1 text-left min-w-0">
+                  <p className="text-xs font-semibold truncate">{user.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{roleLabels[currentRole]}</p>
+                </div>
+                <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              </button>
+              <AnimatePresence>
+                {showRoleSwitch && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    className="absolute left-3 right-3 top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-lg overflow-hidden"
                   >
-                    <div className={`p-1 rounded-md bg-gradient-to-br ${roleColors[r]}`}>
-                      <div className="h-3 w-3" />
-                    </div>
-                    <span className="font-medium">{roleLabels[r]}</span>
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+                    <p className="px-3 py-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Cambiar rol (demo)</p>
+                    {(["admin", "comercio", "creador"] as UserRole[]).map((r) => (
+                      <button
+                        key={r}
+                        onClick={() => { setCurrentRole(r); setShowRoleSwitch(false); }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors ${currentRole === r ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
+                      >
+                        <div className={`p-1 rounded-md bg-gradient-to-br ${roleColors[r]}`}>
+                          <div className="h-3 w-3" />
+                        </div>
+                        <span className="font-medium">{roleLabels[r]}</span>
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </>
+          ) : (
+            /* Production: just show user info, no role switcher */
+            <div className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-muted/50">
+              <div className={`p-1.5 rounded-lg bg-gradient-to-br ${roleColors[currentRole]}`}>
+                <ShoppingBag className="h-3.5 w-3.5 text-white" />
+              </div>
+              <div className="flex-1 text-left min-w-0">
+                <p className="text-xs font-semibold truncate">{user.name}</p>
+                <p className="text-[10px] text-muted-foreground">{roleLabels[currentRole]}</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -224,18 +219,6 @@ export default function AppSidebar() {
           </div>
         ))}
       </nav>
-
-      {/* Bottom - Logout */}
-      <div className="border-t border-sidebar-border">
-        <button
-          onClick={logout}
-          className={`flex items-center gap-3 w-full px-5 py-3 text-sm font-medium text-muted-foreground hover:text-error hover:bg-error/5 transition-colors ${collapsed ? "justify-center" : ""}`}
-          title={collapsed ? "Cerrar sesión" : undefined}
-        >
-          <LogOut className="h-4.5 w-4.5 shrink-0" />
-          {!collapsed && <span>Cerrar sesión</span>}
-        </button>
-      </div>
 
       {/* Collapse toggle (desktop) */}
       {!isMobile && (

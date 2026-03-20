@@ -1,132 +1,100 @@
 import { useState, useEffect } from "react";
-import { Users, Route, Store, DollarSign, TrendingUp, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { Users, Route, Store, DollarSign } from "lucide-react";
 import StatCard from "@/components/StatCard";
-import { adminStats as mockAdminStats, adminGrowth, adminRevenue, formatMXN, formatNumber, pendingRoutes, pendingBusinesses } from "@/lib/mockData";
-import { fetchAdminStats } from "@/lib/supabaseService";
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { formatMXN, formatNumber } from "@/lib/mockData";
+import { fetchAdminStats, fetchPendingRoutes, fetchPendingBusinesses } from "@/lib/supabaseService";
+import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 
-const recentActivity = [
-  { id: "1", text: "Nuevo comercio registrado: Taquería Don Pepe", icon: Store, time: "Hace 15 min", type: "info" },
-  { id: "2", text: "Ruta aprobada: Ruta del Flamenco por Sofía Canul", icon: CheckCircle, time: "Hace 1 hora", type: "success" },
-  { id: "3", text: "Usuario suspendido: Diego Balam — violación de ToS", icon: AlertCircle, time: "Hace 2 horas", type: "warning" },
-  { id: "4", text: "Nueva ruta enviada para revisión: Camino de las Haciendas", icon: Clock, time: "Hace 3 horas", type: "info" },
-  { id: "5", text: "Retiro procesado: Carlos Méndez — $500 MXN", icon: DollarSign, time: "Hace 5 horas", type: "success" },
-];
-
-const activityColors: Record<string, string> = {
-  info: "text-blue-500 bg-blue-500/10",
-  success: "text-emerald-500 bg-emerald-500/10",
-  warning: "text-amber-500 bg-amber-500/10",
-};
-
 export default function AdminPanel() {
-  const [stats, setStats] = useState(mockAdminStats);
+  const { isDemoMode } = useAuth();
+  const [stats, setStats] = useState({ totalUsers: 0, totalRoutes: 0, totalBusinesses: 0, totalRevenue: 0 });
+  const [pendingRoutes, setPendingRoutes] = useState<any[]>([]);
+  const [pendingBusinesses, setPendingBusinesses] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchAdminStats().then(setStats);
-  }, []);
+    fetchAdminStats(isDemoMode).then(setStats);
+    fetchPendingRoutes().then(setPendingRoutes);
+    fetchPendingBusinesses().then(setPendingBusinesses);
+  }, [isDemoMode]);
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold">🛡️ Panel de Administración</h1>
+        <h1 className="text-2xl font-bold">Panel de Administracion</h1>
         <p className="text-muted-foreground text-sm">Vista general de la plataforma Kaelo</p>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total usuarios" value={formatNumber(stats.totalUsers)} icon={Users} color="primary" change={{ value: 12.3, label: "vs mes anterior" }} />
-        <StatCard title="Rutas publicadas" value={String(stats.totalRoutes)} icon={Route} color="secondary" change={{ value: 8.5 }} />
-        <StatCard title="Comercios activos" value={String(stats.totalBusinesses)} icon={Store} color="accent" change={{ value: 16.7 }} />
-        <StatCard title="Revenue total" value={formatMXN(stats.totalRevenue)} icon={DollarSign} color="success" change={{ value: 22.1 }} />
+        <StatCard title="Total usuarios" value={formatNumber(stats.totalUsers)} icon={Users} color="primary" />
+        <StatCard title="Rutas publicadas" value={String(stats.totalRoutes)} icon={Route} color="secondary" />
+        <StatCard title="Comercios activos" value={String(stats.totalBusinesses)} icon={Store} color="accent" />
+        <StatCard title="Revenue total" value={formatMXN(stats.totalRevenue)} icon={DollarSign} color="success" />
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-card border border-border rounded-xl p-5 shadow-card">
-          <h3 className="font-semibold mb-4">Crecimiento de Usuarios</h3>
-          <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={adminGrowth}>
-              <defs>
-                <linearGradient id="userGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-              <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-              <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))' }} />
-              <Area type="monotone" dataKey="users" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#userGrad)" dot={{ r: 4, fill: "hsl(var(--primary))" }} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-5 shadow-card">
-          <h3 className="font-semibold mb-4">Revenue de Plataforma</h3>
-          <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={adminRevenue}>
-              <defs>
-                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-              <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-              <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))' }} formatter={(v: any) => formatMXN(v)} />
-              <Area type="monotone" dataKey="revenue" stroke="hsl(var(--accent))" strokeWidth={2.5} fill="url(#revGrad)" dot={{ r: 4, fill: "hsl(var(--accent))" }} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Pending items + Activity */}
+      {/* Resumen rápido */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Pending moderation */}
         <div className="bg-card border border-border rounded-xl p-5 shadow-card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">⏳ Pendientes de Moderación</h3>
+            <h3 className="font-semibold">Pendientes de Moderacion</h3>
             <span className="text-xs bg-warning/15 text-warning px-2.5 py-1 rounded-full font-bold">{pendingRoutes.length + pendingBusinesses.length}</span>
           </div>
-          <div className="space-y-3">
-            {pendingRoutes.map((r) => (
-              <div key={r.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium">{r.name}</p>
-                  <p className="text-xs text-muted-foreground">por {r.creator} · {r.distance} km · {r.difficulty}</p>
+          {pendingRoutes.length === 0 && pendingBusinesses.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-3xl mb-2">✅</p>
+              <p className="text-sm text-muted-foreground">No hay elementos pendientes de revision</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pendingRoutes.map((r) => (
+                <div key={r.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium">{r.name}</p>
+                    <p className="text-xs text-muted-foreground">por {r.creator} · {r.distance} km · {r.difficulty}</p>
+                  </div>
+                  <Link to="/admin/rutas" className="text-xs font-medium text-primary hover:underline">Revisar</Link>
                 </div>
-                <Link to="/admin/rutas" className="text-xs font-medium text-primary hover:underline">Revisar</Link>
-              </div>
-            ))}
-            {pendingBusinesses.map((b) => (
-              <div key={b.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium">{b.name}</p>
-                  <p className="text-xs text-muted-foreground">{b.type} · {b.owner} · {b.location}</p>
+              ))}
+              {pendingBusinesses.map((b) => (
+                <div key={b.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium">{b.name}</p>
+                    <p className="text-xs text-muted-foreground">{b.type} · {b.owner} · {b.location}</p>
+                  </div>
+                  <Link to="/admin/comercios" className="text-xs font-medium text-primary hover:underline">Revisar</Link>
                 </div>
-                <Link to="/admin/comercios" className="text-xs font-medium text-primary hover:underline">Revisar</Link>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Recent activity */}
+        {/* Accesos rápidos */}
         <div className="bg-card border border-border rounded-xl p-5 shadow-card">
-          <h3 className="font-semibold mb-4">🕐 Actividad Reciente</h3>
+          <h3 className="font-semibold mb-4">Accesos Rapidos</h3>
           <div className="space-y-3">
-            {recentActivity.map((a) => (
-              <div key={a.id} className="flex items-start gap-3">
-                <div className={`p-1.5 rounded-lg shrink-0 ${activityColors[a.type]}`}>
-                  <a.icon className="h-3.5 w-3.5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm">{a.text}</p>
-                  <p className="text-xs text-muted-foreground">{a.time}</p>
-                </div>
+            <Link to="/admin/usuarios" className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
+              <div className="p-2 rounded-lg bg-primary/10"><Users className="h-4 w-4 text-primary" /></div>
+              <div>
+                <p className="text-sm font-medium">Gestion de Usuarios</p>
+                <p className="text-xs text-muted-foreground">{stats.totalUsers} usuarios registrados</p>
               </div>
-            ))}
+            </Link>
+            <Link to="/admin/rutas" className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
+              <div className="p-2 rounded-lg bg-secondary/10"><Route className="h-4 w-4 text-secondary" /></div>
+              <div>
+                <p className="text-sm font-medium">Moderacion de Rutas</p>
+                <p className="text-xs text-muted-foreground">{pendingRoutes.length} pendientes de revision</p>
+              </div>
+            </Link>
+            <Link to="/admin/comercios" className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
+              <div className="p-2 rounded-lg bg-accent/10"><Store className="h-4 w-4 text-accent" /></div>
+              <div>
+                <p className="text-sm font-medium">Moderacion de Comercios</p>
+                <p className="text-xs text-muted-foreground">{pendingBusinesses.length} pendientes de aprobacion</p>
+              </div>
+            </Link>
           </div>
         </div>
       </div>

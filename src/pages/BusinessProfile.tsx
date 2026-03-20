@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { MapPin, Clock, Phone, Globe, Camera } from "lucide-react";
+import { MapPin, Clock, Phone, Camera, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { fetchBusinessProfile, updateBusinessProfile } from "@/lib/supabaseService";
+import PendingApproval from "@/components/PendingApproval";
 
 const businessTypes = [
     { value: "restaurante", label: "Restaurante" },
-    { value: "cafeteria", label: "Cafetería" },
+    { value: "cafeteria", label: "Cafeteria" },
     { value: "tienda", label: "Tienda" },
     { value: "taller_bicicletas", label: "Taller de Bicicletas" },
     { value: "hospedaje", label: "Hospedaje" },
@@ -12,18 +15,23 @@ const businessTypes = [
     { value: "mercado", label: "Mercado" },
 ];
 
-const days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+const days = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"];
+const dayKeys = ["lun", "mar", "mie", "jue", "vie", "sab", "dom"];
 
 export default function BusinessProfile() {
+    const { userBusiness } = useAuth();
+    const businessId = userBusiness?.id;
+    const [saving, setSaving] = useState(false);
+
     const [profile, setProfile] = useState({
-        name: "Café Cenote",
-        description: "Cafetería artesanal con productos locales para ciclistas. Bebidas energéticas, snacks y comida yucateca.",
+        name: userBusiness?.name || "Mi Negocio",
+        description: "",
         type: "cafeteria",
-        address: "Calle 60 #482, Centro, Mérida",
-        phone: "+52 999 123 4567",
-        whatsapp: "+52 999 123 4567",
-        email: "info@cafecenote.mx",
-        website: "www.cafecenote.mx",
+        address: "",
+        phone: "",
+        whatsapp: "",
+        email: "",
+        website: "",
         acceptsPreOrders: true,
         minimumOrder: 50,
         advanceHours: 2,
@@ -32,20 +40,98 @@ export default function BusinessProfile() {
     const [hours, setHours] = useState<Record<string, { open: string; close: string; closed: boolean }>>({
         Lunes: { open: "07:00", close: "21:00", closed: false },
         Martes: { open: "07:00", close: "21:00", closed: false },
-        Miércoles: { open: "07:00", close: "21:00", closed: false },
+        Miercoles: { open: "07:00", close: "21:00", closed: false },
         Jueves: { open: "07:00", close: "21:00", closed: false },
         Viernes: { open: "07:00", close: "22:00", closed: false },
-        Sábado: { open: "08:00", close: "22:00", closed: false },
+        Sabado: { open: "08:00", close: "22:00", closed: false },
         Domingo: { open: "08:00", close: "15:00", closed: false },
     });
 
-    const handleSave = () => toast.success("✅ Perfil del negocio actualizado");
+    // Load business profile from Supabase
+    useEffect(() => {
+        if (!businessId) return;
+        fetchBusinessProfile(businessId).then((data) => {
+            if (!data) return;
+            setProfile({
+                name: data.name || "",
+                description: data.description || "",
+                type: data.business_type || "cafeteria",
+                address: data.address || "",
+                phone: data.phone || "",
+                whatsapp: data.whatsapp || "",
+                email: data.email || "",
+                website: data.website || "",
+                acceptsPreOrders: data.accepts_advance_orders ?? true,
+                minimumOrder: data.minimum_order_amount || 50,
+                advanceHours: data.advance_order_hours || 2,
+            });
+            // Parse business_hours JSON if available
+            if (data.business_hours && typeof data.business_hours === 'object') {
+                const bh = data.business_hours as Record<string, any>;
+                const newHours = { ...hours };
+                dayKeys.forEach((key, i) => {
+                    if (bh[key]) {
+                        newHours[days[i]] = {
+                            open: bh[key].open || "07:00",
+                            close: bh[key].close || "21:00",
+                            closed: bh[key].closed ?? false,
+                        };
+                    }
+                });
+                setHours(newHours);
+            }
+        });
+    }, [businessId]);
+
+    if (userBusiness?.status === 'pendiente') {
+        return <PendingApproval businessName={userBusiness?.name} />;
+    }
+
+    const handleSave = async () => {
+        if (!businessId) {
+            toast.success("Perfil actualizado (modo demo)");
+            return;
+        }
+        setSaving(true);
+
+        // Build business_hours JSON
+        const businessHours: Record<string, any> = {};
+        dayKeys.forEach((key, i) => {
+            businessHours[key] = {
+                open: hours[days[i]].open,
+                close: hours[days[i]].close,
+                closed: hours[days[i]].closed,
+            };
+        });
+
+        const result = await updateBusinessProfile(businessId, {
+            name: profile.name,
+            description: profile.description,
+            business_type: profile.type,
+            address: profile.address,
+            phone: profile.phone,
+            whatsapp: profile.whatsapp,
+            email: profile.email,
+            website: profile.website,
+            accepts_advance_orders: profile.acceptsPreOrders,
+            minimum_order_amount: profile.minimumOrder,
+            advance_order_hours: profile.advanceHours,
+            business_hours: businessHours,
+        });
+        setSaving(false);
+
+        if (result.error) {
+            toast.error(`Error: ${result.error}`);
+        } else {
+            toast.success("Perfil del negocio actualizado");
+        }
+    };
 
     return (
         <div className="space-y-6 animate-fade-in max-w-3xl">
             <div>
-                <h1 className="text-2xl font-bold">🏪 Perfil del Negocio</h1>
-                <p className="text-muted-foreground text-sm">Configura la información visible para los ciclistas</p>
+                <h1 className="text-2xl font-bold">Perfil del Negocio</h1>
+                <p className="text-muted-foreground text-sm">Configura la informacion visible para los ciclistas</p>
             </div>
 
             {/* Cover & logo */}
@@ -66,7 +152,7 @@ export default function BusinessProfile() {
 
             {/* Basic info */}
             <section className="bg-card border border-border rounded-xl p-5 shadow-card space-y-4">
-                <h2 className="font-semibold">Información General</h2>
+                <h2 className="font-semibold">Informacion General</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label className="text-sm text-muted-foreground mb-1 block">Nombre del negocio</label>
@@ -82,7 +168,7 @@ export default function BusinessProfile() {
                     </div>
                 </div>
                 <div>
-                    <label className="text-sm text-muted-foreground mb-1 block">Descripción</label>
+                    <label className="text-sm text-muted-foreground mb-1 block">Descripcion</label>
                     <textarea value={profile.description} onChange={(e) => setProfile(p => ({ ...p, description: e.target.value }))} rows={3}
                         className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
                 </div>
@@ -93,7 +179,7 @@ export default function BusinessProfile() {
                 <h2 className="font-semibold flex items-center gap-2"><Phone className="h-4 w-4" /> Contacto</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {[
-                        { label: "Teléfono", key: "phone", icon: "📞" },
+                        { label: "Telefono", key: "phone", icon: "📞" },
                         { label: "WhatsApp", key: "whatsapp", icon: "💬" },
                         { label: "Email", key: "email", icon: "✉️" },
                         { label: "Sitio web", key: "website", icon: "🌐" },
@@ -109,11 +195,11 @@ export default function BusinessProfile() {
 
             {/* Location */}
             <section className="bg-card border border-border rounded-xl p-5 shadow-card space-y-4">
-                <h2 className="font-semibold flex items-center gap-2"><MapPin className="h-4 w-4" /> Ubicación</h2>
+                <h2 className="font-semibold flex items-center gap-2"><MapPin className="h-4 w-4" /> Ubicacion</h2>
                 <input value={profile.address} onChange={(e) => setProfile(p => ({ ...p, address: e.target.value }))}
                     className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 <div className="h-48 rounded-lg bg-muted flex items-center justify-center text-sm text-muted-foreground border border-dashed border-border">
-                    🗺️ Mapa de ubicación (integración con Mapbox)
+                    Mapa de ubicacion (integracion con Mapbox)
                 </div>
             </section>
 
@@ -148,9 +234,9 @@ export default function BusinessProfile() {
 
             {/* Pre-order config */}
             <section className="bg-card border border-border rounded-xl p-5 shadow-card space-y-4">
-                <h2 className="font-semibold">⚙️ Configuración de Pedidos</h2>
+                <h2 className="font-semibold">Configuracion de Pedidos</h2>
                 <div className="flex items-center justify-between py-1">
-                    <span className="text-sm">Aceptar pre-órdenes</span>
+                    <span className="text-sm">Aceptar pre-ordenes</span>
                     <button onClick={() => setProfile(p => ({ ...p, acceptsPreOrders: !p.acceptsPreOrders }))}
                         className={`w-10 h-5 rounded-full transition-colors ${profile.acceptsPreOrders ? "bg-primary" : "bg-muted"}`}>
                         <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${profile.acceptsPreOrders ? "translate-x-5" : "translate-x-0.5"}`} />
@@ -158,21 +244,21 @@ export default function BusinessProfile() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="text-sm text-muted-foreground mb-1 block">Pedido mínimo (MXN)</label>
+                        <label className="text-sm text-muted-foreground mb-1 block">Pedido minimo (MXN)</label>
                         <input type="number" value={profile.minimumOrder} onChange={(e) => setProfile(p => ({ ...p, minimumOrder: Number(e.target.value) }))}
                             className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" />
                     </div>
                     <div>
-                        <label className="text-sm text-muted-foreground mb-1 block">Horas de anticipación</label>
+                        <label className="text-sm text-muted-foreground mb-1 block">Horas de anticipacion</label>
                         <input type="number" value={profile.advanceHours} onChange={(e) => setProfile(p => ({ ...p, advanceHours: Number(e.target.value) }))}
                             className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" />
                     </div>
                 </div>
             </section>
 
-            <button onClick={handleSave}
-                className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors shadow-sm">
-                Guardar Cambios
+            <button onClick={handleSave} disabled={saving}
+                className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-2 disabled:opacity-60">
+                {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Guardando...</> : "Guardar Cambios"}
             </button>
         </div>
     );

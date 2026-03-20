@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
+import { Plus, MapPin, Bike } from "lucide-react";
 import { myRoutes as mockMyRoutes, formatMXN } from "@/lib/mockData";
 import { fetchMyRoutes } from "@/lib/supabaseService";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,50 +14,84 @@ const statusStyles: Record<string, string> = {
 const statusLabels: Record<string, string> = { borrador: "Borrador", en_revision: "En revisión", publicado: "Publicado", rechazado: "Rechazado" };
 
 export default function MyRoutes() {
-  const { user } = useAuth();
-  const [routeList, setRouteList] = useState(mockMyRoutes);
+  const { user, isDemoMode } = useAuth();
+  const [routeList, setRouteList] = useState(isDemoMode ? mockMyRoutes : []);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    fetchMyRoutes(user?.id).then(setRouteList);
-  }, [user?.id]);
+    fetchMyRoutes(user?.id, isDemoMode).then((data) => {
+      setRouteList(data);
+      setLoaded(true);
+    });
+  }, [user?.id, isDemoMode]);
 
   return (
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">✏️ Mis Rutas Creadas</h1>
-        <button onClick={() => toast.info("🚧 Editor de rutas próximamente")}
+        <h1 className="text-2xl font-bold">Mis Rutas Creadas</h1>
+        <button onClick={() => toast.info("Crea rutas desde la app Kaelo en tu celular")}
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary-hover transition-colors">
           <Plus className="h-4 w-4" /> Crear Nueva Ruta
         </button>
       </div>
-      <div className="bg-card border border-border rounded-lg shadow-card overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Nombre</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Estado</th>
-              <th className="text-right px-4 py-3 font-medium text-muted-foreground">Precio</th>
-              <th className="text-right px-4 py-3 font-medium text-muted-foreground">Ventas</th>
-              <th className="text-right px-4 py-3 font-medium text-muted-foreground">Rating</th>
-              <th className="text-right px-4 py-3 font-medium text-muted-foreground">Ingresos</th>
-            </tr>
-          </thead>
-          <tbody>
-            {routeList.map((r) => (
-              <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                <td className="px-4 py-3 font-medium">{r.name}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2.5 py-0.5 rounded-pill text-xs font-bold ${statusStyles[r.status]}`}>{statusLabels[r.status]}</span>
-                </td>
-                <td className="px-4 py-3 text-right">{r.price > 0 ? formatMXN(r.price) : "Gratis"}</td>
-                <td className="px-4 py-3 text-right">{r.sales}</td>
-                <td className="px-4 py-3 text-right">{r.rating > 0 ? `${r.rating} ⭐` : "—"}</td>
-                <td className="px-4 py-3 text-right font-medium text-success">{r.revenue > 0 ? formatMXN(r.revenue) : "—"}</td>
+
+      {loaded && routeList.length === 0 ? (
+        <div className="bg-card border border-border rounded-xl p-10 shadow-card text-center">
+          <div className="inline-flex p-4 rounded-full bg-primary/10 mb-4">
+            <MapPin className="h-8 w-8 text-primary" />
+          </div>
+          <h2 className="text-xl font-bold mb-2">Aun no tienes rutas</h2>
+          <p className="text-muted-foreground text-sm max-w-md mx-auto mb-6">
+            Crea tu primera ruta ciclista desde la app Kaelo en tu celular. Graba tu recorrido, agrega waypoints y publicala para que otros ciclistas la compren.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-lg mx-auto">
+            <div className="p-4 rounded-lg bg-muted/50">
+              <Bike className="h-5 w-5 text-primary mx-auto mb-2" />
+              <p className="text-xs font-medium">1. Pedalea</p>
+              <p className="text-[11px] text-muted-foreground">Graba tu ruta con GPS</p>
+            </div>
+            <div className="p-4 rounded-lg bg-muted/50">
+              <MapPin className="h-5 w-5 text-primary mx-auto mb-2" />
+              <p className="text-xs font-medium">2. Publica</p>
+              <p className="text-[11px] text-muted-foreground">Agrega fotos y waypoints</p>
+            </div>
+            <div className="p-4 rounded-lg bg-muted/50">
+              <span className="text-xl block mb-1">💰</span>
+              <p className="text-xs font-medium">3. Monetiza</p>
+              <p className="text-[11px] text-muted-foreground">Gana por cada venta</p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-card border border-border rounded-lg shadow-card overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Nombre</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Estado</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Precio</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Ventas</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Rating</th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Ingresos</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {routeList.map((r) => (
+                <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-3 font-medium">{r.name}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2.5 py-0.5 rounded-pill text-xs font-bold ${statusStyles[r.status]}`}>{statusLabels[r.status]}</span>
+                  </td>
+                  <td className="px-4 py-3 text-right">{r.price > 0 ? formatMXN(r.price) : "Gratis"}</td>
+                  <td className="px-4 py-3 text-right">{r.sales}</td>
+                  <td className="px-4 py-3 text-right">{r.rating > 0 ? `${r.rating}` : "—"}</td>
+                  <td className="px-4 py-3 text-right font-medium text-success">{r.revenue > 0 ? formatMXN(r.revenue) : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

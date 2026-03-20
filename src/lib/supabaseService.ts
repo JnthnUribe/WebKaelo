@@ -1,14 +1,15 @@
 /**
  * Supabase Data Service Layer
- * Tries to fetch real data from Supabase, falls back to mock data if unavailable.
- * This ensures the demo always works, even if the DB is empty.
+ * - demoMode=true → returns mock data (for ?demo=true URL)
+ * - demoMode=false → returns real Supabase data or empty arrays
+ * - !isSupabaseConfigured → always returns mock data
  */
 import { supabase, isSupabaseConfigured } from './supabase';
 import * as mock from './mockData';
 
 // ─── ROUTES ────────────────────────────────────────────────────
-export async function fetchRoutes(): Promise<mock.RouteData[]> {
-    if (!isSupabaseConfigured) return mock.routes;
+export async function fetchRoutes(demoMode = false): Promise<mock.RouteData[]> {
+    if (!isSupabaseConfigured || demoMode) return mock.routes;
 
     try {
         const { data, error } = await supabase
@@ -21,10 +22,7 @@ export async function fetchRoutes(): Promise<mock.RouteData[]> {
             .eq('status', 'publicado')
             .order('created_at', { ascending: false });
 
-        if (error || !data || data.length === 0) {
-            console.log('📦 Using mock routes (DB empty or error)');
-            return mock.routes;
-        }
+        if (error || !data) return [];
 
         return data.map((r: any) => ({
             id: r.id,
@@ -55,14 +53,14 @@ export async function fetchRoutes(): Promise<mock.RouteData[]> {
             reviews: [],
         }));
     } catch (err) {
-        console.warn('⚠️ Supabase fetch failed, using mock routes:', err);
-        return mock.routes;
+        console.warn('Supabase fetch failed:', err);
+        return [];
     }
 }
 
 // ─── BUSINESSES ────────────────────────────────────────────────
-export async function fetchBusinesses(): Promise<mock.BusinessData[]> {
-    if (!isSupabaseConfigured) return mock.businesses;
+export async function fetchBusinesses(demoMode = false): Promise<mock.BusinessData[]> {
+    if (!isSupabaseConfigured || demoMode) return mock.businesses;
 
     try {
         const { data, error } = await supabase
@@ -71,10 +69,7 @@ export async function fetchBusinesses(): Promise<mock.BusinessData[]> {
             .eq('status', 'activo')
             .order('created_at', { ascending: false });
 
-        if (error || !data || data.length === 0) {
-            console.log('📦 Using mock businesses');
-            return mock.businesses;
-        }
+        if (error || !data) return [];
 
         return data.map((b: any) => ({
             id: b.id,
@@ -103,14 +98,14 @@ export async function fetchBusinesses(): Promise<mock.BusinessData[]> {
             })),
         }));
     } catch (err) {
-        console.warn('⚠️ Supabase fetch failed, using mock businesses:', err);
-        return mock.businesses;
+        console.warn('Supabase fetch failed:', err);
+        return [];
     }
 }
 
 // ─── ORDERS ────────────────────────────────────────────────────
-export async function fetchOrders(businessId?: string): Promise<mock.OrderData[]> {
-    if (!isSupabaseConfigured) return mock.orders;
+export async function fetchOrders(businessId?: string, demoMode = false): Promise<mock.OrderData[]> {
+    if (!isSupabaseConfigured || demoMode) return mock.orders;
 
     try {
         let query = supabase
@@ -129,10 +124,7 @@ export async function fetchOrders(businessId?: string): Promise<mock.OrderData[]
 
         const { data, error } = await query;
 
-        if (error || !data || data.length === 0) {
-            console.log('📦 Using mock orders');
-            return mock.orders;
-        }
+        if (error || !data) return [];
 
         return data.map((o: any) => ({
             id: o.order_number || o.id,
@@ -149,14 +141,14 @@ export async function fetchOrders(businessId?: string): Promise<mock.OrderData[]
             pickupTime: o.estimated_pickup_time || '',
         }));
     } catch (err) {
-        console.warn('⚠️ Supabase fetch failed, using mock orders:', err);
-        return mock.orders;
+        console.warn('Supabase fetch failed:', err);
+        return [];
     }
 }
 
 // ─── PRODUCTS ──────────────────────────────────────────────────
-export async function fetchProducts(businessId?: string): Promise<mock.ProductData[]> {
-    if (!isSupabaseConfigured) return mock.businesses.flatMap(b => b.products);
+export async function fetchProducts(businessId?: string, demoMode = false): Promise<mock.ProductData[]> {
+    if (!isSupabaseConfigured || demoMode) return mock.businesses.flatMap(b => b.products);
 
     try {
         let query = supabase
@@ -170,10 +162,7 @@ export async function fetchProducts(businessId?: string): Promise<mock.ProductDa
 
         const { data, error } = await query;
 
-        if (error || !data || data.length === 0) {
-            console.log('📦 Using mock products');
-            return mock.businesses.flatMap(b => b.products);
-        }
+        if (error || !data) return [];
 
         return data.map((p: any) => ({
             id: p.id,
@@ -186,14 +175,14 @@ export async function fetchProducts(businessId?: string): Promise<mock.ProductDa
             image: p.image_url || '📦',
         }));
     } catch (err) {
-        console.warn('⚠️ Supabase fetch failed, using mock products:', err);
-        return mock.businesses.flatMap(b => b.products);
+        console.warn('Supabase fetch failed:', err);
+        return [];
     }
 }
 
 // ─── USERS (Admin) ─────────────────────────────────────────────
-export async function fetchUsers(): Promise<mock.UserData[]> {
-    if (!isSupabaseConfigured) return mock.users;
+export async function fetchUsers(demoMode = false): Promise<mock.UserData[]> {
+    if (!isSupabaseConfigured || demoMode) return mock.users;
 
     try {
         const { data, error } = await supabase
@@ -201,30 +190,31 @@ export async function fetchUsers(): Promise<mock.UserData[]> {
             .select('*')
             .order('created_at', { ascending: false });
 
-        if (error || !data || data.length === 0) {
-            console.log('📦 Using mock users');
-            return mock.users;
-        }
+        if (error || !data) return [];
 
-        return data.map((u: any) => ({
-            id: u.id,
-            name: u.full_name || 'Usuario',
-            email: u.email,
-            avatar: u.avatar_url || `https://i.pravatar.cc/40?u=${u.id}`,
-            role: u.is_creator ? 'creador' : u.is_business_owner ? 'comercio' : 'ciclista',
-            registeredDate: u.created_at || '',
-            routesCompleted: 0,
-            status: 'activo' as const,
-        }));
+        return data.map((u: any) => {
+            const prefs = u.preferences as any;
+            const isSuspended = prefs?.suspended === true;
+            return {
+                id: u.id,
+                name: u.full_name || 'Usuario',
+                email: u.email,
+                avatar: u.avatar_url || `https://i.pravatar.cc/40?u=${u.id}`,
+                role: u.is_creator ? 'creador' : u.is_business_owner ? 'comercio' : 'ciclista',
+                registeredDate: u.created_at || '',
+                routesCompleted: 0,
+                status: (isSuspended ? 'suspendido' : 'activo') as 'activo' | 'suspendido',
+            };
+        });
     } catch (err) {
-        console.warn('⚠️ Supabase fetch failed, using mock users:', err);
-        return mock.users;
+        console.warn('Supabase fetch failed:', err);
+        return [];
     }
 }
 
 // ─── REVIEWS ───────────────────────────────────────────────────
-export async function fetchReviews(businessId?: string): Promise<mock.ReviewData[]> {
-    if (!isSupabaseConfigured) return mock.routes.flatMap(r => r.reviews);
+export async function fetchReviews(businessId?: string, demoMode = false): Promise<mock.ReviewData[]> {
+    if (!isSupabaseConfigured || demoMode) return mock.routes.flatMap(r => r.reviews);
 
     try {
         let query = supabase
@@ -240,9 +230,7 @@ export async function fetchReviews(businessId?: string): Promise<mock.ReviewData
 
         const { data, error } = await query;
 
-        if (error || !data || data.length === 0) {
-            return mock.routes[0]?.reviews || [];
-        }
+        if (error || !data) return [];
 
         return data.map((r: any) => ({
             id: r.id,
@@ -253,13 +241,14 @@ export async function fetchReviews(businessId?: string): Promise<mock.ReviewData
             date: r.created_at || '',
         }));
     } catch (err) {
-        return mock.routes[0]?.reviews || [];
+        return [];
     }
 }
 
 // ─── MY ROUTES (Creator) ──────────────────────────────────────
-export async function fetchMyRoutes(creatorId?: string): Promise<mock.MyRouteData[]> {
-    if (!isSupabaseConfigured || !creatorId) return mock.myRoutes;
+export async function fetchMyRoutes(creatorId?: string, demoMode = false): Promise<mock.MyRouteData[]> {
+    if (!isSupabaseConfigured || demoMode) return mock.myRoutes;
+    if (!creatorId) return [];
 
     try {
         const { data, error } = await supabase
@@ -268,10 +257,7 @@ export async function fetchMyRoutes(creatorId?: string): Promise<mock.MyRouteDat
             .eq('creator_id', creatorId)
             .order('created_at', { ascending: false });
 
-        if (error || !data || data.length === 0) {
-            console.log('📦 Using mock routes (creator)');
-            return mock.myRoutes;
-        }
+        if (error || !data) return [];
 
         return data.map((r: any) => ({
             id: r.id,
@@ -283,13 +269,13 @@ export async function fetchMyRoutes(creatorId?: string): Promise<mock.MyRouteDat
             revenue: (r.purchase_count || 0) * Number(r.price || 0) * 0.85,
         }));
     } catch (err) {
-        return mock.myRoutes;
+        return [];
     }
 }
 
 // ─── STATS ─────────────────────────────────────────────────────
-export async function fetchAdminStats() {
-    if (!isSupabaseConfigured) return mock.adminStats;
+export async function fetchAdminStats(demoMode = false) {
+    if (!isSupabaseConfigured || demoMode) return mock.adminStats;
 
     try {
         const [usersRes, routesRes, businessRes] = await Promise.all([
@@ -298,27 +284,20 @@ export async function fetchAdminStats() {
             supabase.from('businesses').select('id', { count: 'exact', head: true }).eq('status', 'activo'),
         ]);
 
-        const totalUsers = usersRes.count || 0;
-        const totalRoutes = routesRes.count || 0;
-        const totalBusinesses = businessRes.count || 0;
-
-        if (totalUsers === 0 && totalRoutes === 0 && totalBusinesses === 0) {
-            return mock.adminStats;
-        }
-
         return {
-            totalUsers,
-            totalRoutes,
-            totalBusinesses,
-            totalRevenue: mock.adminStats.totalRevenue, // This needs an aggregation query
+            totalUsers: usersRes.count || 0,
+            totalRoutes: routesRes.count || 0,
+            totalBusinesses: businessRes.count || 0,
+            totalRevenue: 0,
         };
     } catch {
-        return mock.adminStats;
+        return { totalUsers: 0, totalRoutes: 0, totalBusinesses: 0, totalRevenue: 0 };
     }
 }
 
-export async function fetchMerchantStats(businessId?: string) {
-    if (!isSupabaseConfigured || !businessId) return mock.merchantStats;
+export async function fetchMerchantStats(businessId?: string, demoMode = false) {
+    if (!isSupabaseConfigured || demoMode) return mock.merchantStats;
+    if (!businessId) return { ordersToday: 0, monthRevenue: 0, rating: 0, totalReviews: 0 };
 
     try {
         const [ordersRes, reviewsRes] = await Promise.all([
@@ -332,16 +311,14 @@ export async function fetchMerchantStats(businessId?: string) {
             ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length
             : 0;
 
-        if (totalOrders === 0) return mock.merchantStats;
-
         return {
             ordersToday: totalOrders,
-            monthRevenue: mock.merchantStats.monthRevenue,
+            monthRevenue: 0,
             rating: Math.round(avgRating * 10) / 10,
             totalReviews: reviews.length,
         };
     } catch {
-        return mock.merchantStats;
+        return { ordersToday: 0, monthRevenue: 0, rating: 0, totalReviews: 0 };
     }
 }
 
@@ -403,8 +380,19 @@ export async function addProduct(input: AddProductInput): Promise<{ error: strin
     }
 }
 
+export async function deleteProduct(productId: string): Promise<{ error: string | null }> {
+    if (!isSupabaseConfigured) return { error: null };
+    try {
+        const { error } = await supabase.from('products').delete().eq('id', productId);
+        if (error) return { error: error.message };
+        return { error: null };
+    } catch (err: any) {
+        return { error: err.message };
+    }
+}
+
 export async function toggleProductAvailability(productId: string, available: boolean): Promise<{ error: string | null }> {
-    if (!isSupabaseConfigured) return { error: null }; // Silent no-op in demo
+    if (!isSupabaseConfigured) return { error: null };
 
     try {
         const { error } = await supabase
@@ -422,12 +410,10 @@ export async function toggleProductAvailability(productId: string, available: bo
 // ─── REGISTER BUSINESS ─────────────────────────────────────────
 
 interface RegisterBusinessInput {
-    // Owner info
     ownerName: string;
     email: string;
     password: string;
     phone?: string;
-    // Business info
     businessName: string;
     businessType: string;
     address: string;
@@ -439,7 +425,6 @@ export async function registerBusiness(input: RegisterBusinessInput): Promise<{ 
         return { error: 'Supabase no configurado. Usa el modo demo.' };
     }
 
-    // ── Frontend validations ──
     if (input.password.length < 6) {
         return { error: 'La contraseña debe tener al menos 6 caracteres.' };
     }
@@ -450,7 +435,6 @@ export async function registerBusiness(input: RegisterBusinessInput): Promise<{ 
     try {
         let userId: string;
 
-        // ── Step 1: Get or create auth user ──
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email: input.email,
             password: input.password,
@@ -463,10 +447,8 @@ export async function registerBusiness(input: RegisterBusinessInput): Promise<{ 
         });
 
         if (authError) {
-            // If already registered, try to sign in instead
             if (authError.message.includes('already registered') ||
                 authError.message.includes('User already registered')) {
-                console.log('User already exists, trying sign in...');
                 const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
                     email: input.email,
                     password: input.password,
@@ -483,8 +465,6 @@ export async function registerBusiness(input: RegisterBusinessInput): Promise<{ 
         } else if (authData?.user) {
             userId = authData.user.id;
         } else {
-            // Supabase may return a fake user when email exists (no error, no session)
-            // Try to sign in
             const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
                 email: input.email,
                 password: input.password,
@@ -495,8 +475,6 @@ export async function registerBusiness(input: RegisterBusinessInput): Promise<{ 
             userId = signInData.user.id;
         }
 
-        // ── Step 2: Ensure profile exists ──
-        // Wait briefly for the DB trigger to create the profile
         await new Promise(resolve => setTimeout(resolve, 1500));
 
         const { data: existingProfile } = await supabase
@@ -506,8 +484,6 @@ export async function registerBusiness(input: RegisterBusinessInput): Promise<{ 
             .single();
 
         if (!existingProfile) {
-            // Profile doesn't exist yet — create it manually
-            console.log('Profile not found, creating manually...');
             const { error: profileInsertErr } = await supabase
                 .from('profiles')
                 .insert({
@@ -520,7 +496,6 @@ export async function registerBusiness(input: RegisterBusinessInput): Promise<{ 
                 });
 
             if (profileInsertErr) {
-                // Maybe trigger just created it, try once more
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 const { data: retryCheck } = await supabase
                     .from('profiles').select('id').eq('id', userId).single();
@@ -530,7 +505,6 @@ export async function registerBusiness(input: RegisterBusinessInput): Promise<{ 
             }
         }
 
-        // Update profile with business owner flag
         await supabase
             .from('profiles')
             .update({
@@ -540,7 +514,6 @@ export async function registerBusiness(input: RegisterBusinessInput): Promise<{ 
             })
             .eq('id', userId);
 
-        // ── Step 3: Check if business already exists for this user ──
         const { data: existingBiz } = await supabase
             .from('businesses')
             .select('id')
@@ -548,11 +521,9 @@ export async function registerBusiness(input: RegisterBusinessInput): Promise<{ 
             .single();
 
         if (existingBiz) {
-            // Business already exists from a previous attempt
             return { error: null, businessId: existingBiz.id };
         }
 
-        // ── Step 4: Create business ──
         const slug = input.businessName
             .toLowerCase()
             .normalize('NFD')
@@ -583,11 +554,174 @@ export async function registerBusiness(input: RegisterBusinessInput): Promise<{ 
             return { error: `Error al registrar negocio: ${bizError.message}` };
         }
 
+        // Sign out so user must log in fresh (prevents auto-login with wrong role)
+        await supabase.auth.signOut();
+
         return { error: null, businessId: bizData?.id };
     } catch (err: any) {
         console.error('Registration error:', err);
+        // Also sign out on error to prevent partial auto-login
+        try { await supabase.auth.signOut(); } catch { /* ignore */ }
         return { error: err.message || 'Error inesperado. Intenta de nuevo.' };
     }
+}
+
+// ─── MODERATION ───────────────────────────────────────────────
+
+export async function fetchPendingRoutes() {
+    if (!isSupabaseConfigured) return [];
+    try {
+        const { data, error } = await supabase
+            .from('routes')
+            .select('*, creator:profiles!routes_creator_id_fkey(full_name)')
+            .eq('status', 'en_revision')
+            .order('created_at', { ascending: false });
+        if (error || !data) return [];
+        return data.map((r: any) => ({
+            id: r.id,
+            name: r.name,
+            creator: r.creator?.full_name || 'Desconocido',
+            distance: Number(r.distance_km) || 0,
+            difficulty: r.difficulty || 'moderada',
+            date: r.created_at ? new Date(r.created_at).toLocaleDateString('es-MX') : '',
+        }));
+    } catch { return []; }
+}
+
+export async function fetchPendingBusinesses() {
+    if (!isSupabaseConfigured) return [];
+    try {
+        const { data, error } = await supabase
+            .from('businesses')
+            .select('*, owner:profiles!businesses_owner_id_fkey(full_name)')
+            .eq('status', 'pendiente')
+            .order('created_at', { ascending: false });
+        if (error || !data) return [];
+        return data.map((b: any) => ({
+            id: b.id,
+            name: b.name,
+            type: b.business_type || 'otro',
+            owner: b.owner?.full_name || 'Desconocido',
+            location: b.address || 'Sin dirección',
+            date: b.created_at ? new Date(b.created_at).toLocaleDateString('es-MX') : '',
+        }));
+    } catch { return []; }
+}
+
+export async function approveRoute(routeId: string): Promise<{ error: string | null }> {
+    if (!isSupabaseConfigured) return { error: null };
+    const { error } = await supabase.from('routes').update({ status: 'publicado', published_at: new Date().toISOString() }).eq('id', routeId);
+    return { error: error?.message || null };
+}
+
+export async function rejectRoute(routeId: string): Promise<{ error: string | null }> {
+    if (!isSupabaseConfigured) return { error: null };
+    const { error } = await supabase.from('routes').update({ status: 'rechazado' }).eq('id', routeId);
+    return { error: error?.message || null };
+}
+
+export async function approveBusiness(businessId: string): Promise<{ error: string | null }> {
+    if (!isSupabaseConfigured) return { error: null };
+    const { error } = await supabase.from('businesses').update({ status: 'activo' }).eq('id', businessId);
+    return { error: error?.message || null };
+}
+
+export async function rejectBusiness(businessId: string): Promise<{ error: string | null }> {
+    if (!isSupabaseConfigured) return { error: null };
+    const { error } = await supabase.from('businesses').update({ status: 'rechazado' }).eq('id', businessId);
+    return { error: error?.message || null };
+}
+
+// ─── ORDER STATUS ─────────────────────────────────────────────
+
+export async function updateOrderStatus(orderId: string, status: string): Promise<{ error: string | null }> {
+    if (!isSupabaseConfigured) return { error: null };
+    const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
+    return { error: error?.message || null };
+}
+
+export function subscribeToOrders(businessId: string, callback: () => void) {
+    if (!isSupabaseConfigured) return { unsubscribe: () => {} };
+    const channel = supabase
+        .channel(`orders-${businessId}`)
+        .on('postgres_changes', {
+            event: '*', schema: 'public', table: 'orders',
+            filter: `business_id=eq.${businessId}`,
+        }, callback)
+        .subscribe();
+    return { unsubscribe: () => supabase.removeChannel(channel) };
+}
+
+// ─── BUSINESS PROFILE ─────────────────────────────────────────
+
+export async function fetchBusinessProfile(businessId: string) {
+    if (!isSupabaseConfigured || !businessId) return null;
+    try {
+        const { data, error } = await supabase
+            .from('businesses')
+            .select('*')
+            .eq('id', businessId)
+            .single();
+        if (error || !data) return null;
+        return data;
+    } catch { return null; }
+}
+
+export async function updateBusinessProfile(businessId: string, updates: Record<string, any>): Promise<{ error: string | null }> {
+    if (!isSupabaseConfigured) return { error: null };
+    const { error } = await supabase.from('businesses').update(updates).eq('id', businessId);
+    return { error: error?.message || null };
+}
+
+// ─── USER MANAGEMENT ──────────────────────────────────────────
+
+export async function updateUserStatus(userId: string, status: string): Promise<{ error: string | null }> {
+    if (!isSupabaseConfigured) return { error: null };
+    const { error } = await supabase
+        .from('profiles')
+        .update({ preferences: { suspended: status === 'suspendido' } as any })
+        .eq('id', userId);
+    return { error: error?.message || null };
+}
+
+// ─── PROFILE SETTINGS ─────────────────────────────────────────
+
+export async function updateProfile(userId: string, updates: { full_name?: string; avatar_url?: string; phone?: string }): Promise<{ error: string | null }> {
+    if (!isSupabaseConfigured) return { error: null };
+    const { error } = await supabase.from('profiles').update(updates).eq('id', userId);
+    return { error: error?.message || null };
+}
+
+export async function updatePassword(newPassword: string): Promise<{ error: string | null }> {
+    if (!isSupabaseConfigured) return { error: 'Supabase no configurado' };
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return { error: error?.message || null };
+}
+
+// ─── WALLET (Creator) ─────────────────────────────────────────
+
+export async function fetchWalletData(creatorId: string) {
+    if (!isSupabaseConfigured || !creatorId) return null;
+    try {
+        const { data: purchases, error } = await supabase
+            .from('route_purchases')
+            .select('*, route:routes!route_purchases_route_id_fkey(name, price)')
+            .eq('route:routes.creator_id', creatorId)
+            .order('purchased_at', { ascending: false });
+
+        if (error || !purchases || purchases.length === 0) return null;
+
+        const transactions = purchases.map((p: any) => ({
+            id: p.id,
+            type: 'ingreso' as const,
+            description: `Venta: ${p.route?.name || 'Ruta'}`,
+            amount: Number(p.creator_amount || 0),
+            date: p.purchased_at ? new Date(p.purchased_at).toLocaleDateString('es-MX') : '',
+        }));
+
+        const balance = transactions.reduce((sum: number, t: any) => sum + t.amount, 0);
+        return { balance, transactions };
+    } catch { return null; }
 }
 
 // ─── HELPERS ───────────────────────────────────────────────────
@@ -611,7 +745,6 @@ function getBusinessEmoji(type: string): string {
 
 function formatBusinessHours(hours: any): string {
     if (!hours || typeof hours !== 'object') return 'Horario no disponible';
-    // Try to get a representative schedule
     const days = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'];
     for (const day of days) {
         if (hours[day]) return hours[day];

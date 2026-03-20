@@ -5,7 +5,7 @@ import { registerBusiness } from "@/lib/supabaseService";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Bike, ArrowRight, ArrowLeft, Eye, EyeOff,
-    Shield, Store, PenSquare, Mail, Lock, User, MapPin, Clock, Phone, CheckCircle, Sparkles
+    Shield, Store, PenSquare, Mail, Lock, User, MapPin, Clock, Phone, CheckCircle
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -56,6 +56,9 @@ export default function LoginPage() {
     const [showPw, setShowPw] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+
+    // Demo mode only visible via ?demo=true in URL
+    const showDemoButtons = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === 'true';
     const [regName, setRegName] = useState("");
     const [regEmail, setRegEmail] = useState("");
     const [regPassword, setRegPassword] = useState("");
@@ -80,9 +83,8 @@ export default function LoginPage() {
         setLoginLoading(false);
 
         if (result.error) {
-            // If Supabase auth fails, show error but offer demo access
             toast.error(`Error: ${result.error}`, {
-                description: "Puedes usar el acceso demo mientras tanto.",
+                description: "Verifica tus credenciales e intenta de nuevo.",
                 duration: 5000,
             });
         } else {
@@ -90,7 +92,7 @@ export default function LoginPage() {
         }
     };
 
-    const handleGoogle = () => { toast.success("✅ Conectado con Google"); login("creador"); };
+    const handleGoogle = () => { toast.info("Google Sign-In próximamente. Usa tu email y contraseña."); };
 
     const handleRegStep1 = (e: React.FormEvent) => {
         e.preventDefault();
@@ -116,12 +118,9 @@ export default function LoginPage() {
         setRegLoading(false);
 
         if (result.error) {
-            // Supabase failed (rate limit, etc.) — fallback to demo mode
-            console.warn('Registration error, falling back to demo:', result.error);
-            toast.success("✅ ¡Negocio registrado exitosamente!");
-            nav("register-success");
+            toast.error(`Error: ${result.error}`);
         } else {
-            toast.success("✅ ¡Negocio registrado exitosamente!");
+            toast.success("¡Negocio registrado! Inicia sesion para continuar.");
             nav("register-success");
         }
     };
@@ -242,7 +241,8 @@ export default function LoginPage() {
                                             </div>
                                         </div>
 
-                                        {/* Demo */}
+                                        {/* Demo - only visible via ?demo=true */}
+                                        {showDemoButtons && (
                                         <div className="border-t pt-4">
                                             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Demo · acceso rápido</p>
                                             <div className="flex gap-1.5">
@@ -255,6 +255,7 @@ export default function LoginPage() {
                                                 ))}
                                             </div>
                                         </div>
+                                        )}
                                     </div>
                                 </motion.div>
                             )}
@@ -501,9 +502,9 @@ export default function LoginPage() {
                                             <div className="flex justify-between"><span className="text-muted-foreground">Estado</span><span className="text-warning font-medium">⏳ Pendiente</span></div>
                                         </div>
 
-                                        <button onClick={() => login("comercio")}
+                                        <button onClick={() => nav("login")}
                                             className="w-full py-2.5 rounded-xl bg-accent text-accent-foreground font-semibold text-sm hover:bg-accent/90 transition-all shadow-md shadow-accent/20 mb-2">
-                                            Ver demo del panel →
+                                            Iniciar Sesión →
                                         </button>
                                         <button onClick={() => nav("welcome")}
                                             className="w-full py-2 text-muted-foreground hover:text-foreground text-sm font-medium transition-colors">
