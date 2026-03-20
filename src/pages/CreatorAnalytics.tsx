@@ -1,6 +1,7 @@
-import { Eye, ShoppingBag, TrendingUp, DollarSign, ArrowUpRight } from "lucide-react";
+import { Eye, ShoppingBag, TrendingUp, DollarSign, ArrowUpRight, BarChart3 } from "lucide-react";
 import StatCard from "@/components/StatCard";
 import { formatMXN } from "@/lib/mockData";
+import { useAuth } from "@/contexts/AuthContext";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 
 const monthlyEarnings = [
@@ -28,18 +29,42 @@ const viewsVsSales = [
     { month: "Feb", views: 980, sales: 40 },
 ];
 
-export default function CreatorAnalytics() {
+function EmptyCreatorAnalytics() {
     return (
         <div className="space-y-6 animate-fade-in">
             <div>
-                <h1 className="text-2xl font-bold">📈 Analytics de Rutas</h1>
+                <h1 className="text-2xl font-bold">Analytics de Rutas</h1>
+                <p className="text-muted-foreground text-sm">Rendimiento de tus rutas publicadas</p>
+            </div>
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="inline-flex p-4 rounded-full bg-muted/50 mb-4">
+                    <BarChart3 className="h-12 w-12 text-muted-foreground" />
+                </div>
+                <h2 className="text-xl font-bold mb-2">Sin datos de analytics</h2>
+                <p className="text-muted-foreground max-w-md">
+                    Cuando publiques rutas desde la app de Kaelo y los usuarios las compren, aqui veras tus estadisticas de ventas, views y rendimiento.
+                </p>
+            </div>
+        </div>
+    );
+}
+
+export default function CreatorAnalytics() {
+    const { isDemoMode } = useAuth();
+
+    if (!isDemoMode) return <EmptyCreatorAnalytics />;
+
+    return (
+        <div className="space-y-6 animate-fade-in">
+            <div>
+                <h1 className="text-2xl font-bold">Analytics de Rutas</h1>
                 <p className="text-muted-foreground text-sm">Rendimiento de tus rutas publicadas</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard title="Views totales" value="1,770" icon={Eye} color="primary" change={{ value: 15.3, label: "vs mes anterior" }} />
                 <StatCard title="Ventas totales" value="117" icon={ShoppingBag} color="accent" change={{ value: 8.2 }} />
-                <StatCard title="Conversión media" value="6.6%" icon={TrendingUp} color="secondary" change={{ value: 1.4 }} />
+                <StatCard title="Conversion media" value="6.6%" icon={TrendingUp} color="secondary" change={{ value: 1.4 }} />
                 <StatCard title="Earnings totales" value={formatMXN(15550)} icon={DollarSign} color="success" change={{ value: 22.1 }} />
             </div>
 
@@ -81,7 +106,7 @@ export default function CreatorAnalytics() {
 
             {/* Route performance table */}
             <div className="bg-card border border-border rounded-xl p-5 shadow-card">
-                <h3 className="font-semibold mb-4">🗺️ Rendimiento por Ruta</h3>
+                <h3 className="font-semibold mb-4">Rendimiento por Ruta</h3>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead>
@@ -89,7 +114,7 @@ export default function CreatorAnalytics() {
                                 <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Ruta</th>
                                 <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Views</th>
                                 <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Ventas</th>
-                                <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Conversión</th>
+                                <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Conversion</th>
                                 <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Revenue</th>
                                 <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Rating</th>
                                 <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Refunds</th>
@@ -110,7 +135,7 @@ export default function CreatorAnalytics() {
                                         {r.conversion === 0 && "—"}
                                     </td>
                                     <td className="py-3 px-3 text-right font-medium text-emerald-500">{r.revenue > 0 ? formatMXN(r.revenue) : "—"}</td>
-                                    <td className="py-3 px-3 text-right">{r.rating > 0 ? `${r.rating} ⭐` : "—"}</td>
+                                    <td className="py-3 px-3 text-right">{r.rating > 0 ? `${r.rating}` : "—"}</td>
                                     <td className="py-3 px-3 text-right">
                                         {r.refundRate > 0 && (
                                             <span className={r.refundRate > 3 ? "text-amber-500" : "text-muted-foreground"}>{r.refundRate}%</span>

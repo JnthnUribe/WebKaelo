@@ -4,10 +4,11 @@ import { Loader2 } from "lucide-react";
 import { registerBusiness } from "@/lib/supabaseService";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Bike, ArrowRight, ArrowLeft, Eye, EyeOff,
-    Shield, Store, PenSquare, Mail, Lock, User, MapPin, Clock, Phone, CheckCircle
+    ArrowRight, ArrowLeft, Eye, EyeOff,
+    Shield, Store, PenSquare, Mail, Lock, User, MapPin, Clock, Phone, CheckCircle, Bike
 } from "lucide-react";
 import { toast } from "sonner";
+import KaeloLogo from "@/components/KaeloLogo";
 
 type View = "welcome" | "login" | "register" | "register-step2" | "register-success";
 
@@ -141,9 +142,7 @@ export default function LoginPage() {
             <div className="hidden lg:flex flex-1 relative z-10 flex-col justify-between p-12">
                 <div>
                     <div className="flex items-center gap-3 mb-1">
-                        <div className="p-2.5 rounded-xl bg-primary shadow-lg shadow-primary/30">
-                            <Bike className="h-7 w-7 text-white" />
-                        </div>
+                        <KaeloLogo className="h-12 w-12 rounded-xl shadow-lg" />
                         <span className="text-3xl font-bold text-white tracking-tight">Kaelo</span>
                     </div>
                 </div>
@@ -176,9 +175,7 @@ export default function LoginPage() {
 
                     {/* Mobile logo */}
                     <div className="flex items-center gap-2 mb-5 lg:hidden">
-                        <div className="p-2 rounded-lg bg-primary">
-                            <Bike className="h-5 w-5 text-white" />
-                        </div>
+                        <KaeloLogo className="h-9 w-9 rounded-lg" />
                         <span className="text-xl font-bold text-white">Kaelo</span>
                     </div>
 

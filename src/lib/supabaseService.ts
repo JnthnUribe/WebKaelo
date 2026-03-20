@@ -5,6 +5,7 @@
  * - !isSupabaseConfigured → always returns mock data
  */
 import { supabase, isSupabaseConfigured } from './supabase';
+import { setSuppressAuth } from '@/contexts/AuthContext';
 import * as mock from './mockData';
 
 // ─── ROUTES ────────────────────────────────────────────────────
@@ -432,6 +433,9 @@ export async function registerBusiness(input: RegisterBusinessInput): Promise<{ 
         return { error: 'El email no es válido.' };
     }
 
+    // Suppress auth state changes so the user doesn't get auto-logged-in mid-registration
+    setSuppressAuth(true);
+
     try {
         let userId: string;
 
@@ -556,12 +560,14 @@ export async function registerBusiness(input: RegisterBusinessInput): Promise<{ 
 
         // Sign out so user must log in fresh (prevents auto-login with wrong role)
         await supabase.auth.signOut();
+        setSuppressAuth(false);
 
         return { error: null, businessId: bizData?.id };
     } catch (err: any) {
         console.error('Registration error:', err);
         // Also sign out on error to prevent partial auto-login
         try { await supabase.auth.signOut(); } catch { /* ignore */ }
+        setSuppressAuth(false);
         return { error: err.message || 'Error inesperado. Intenta de nuevo.' };
     }
 }
@@ -610,34 +616,44 @@ export async function fetchPendingBusinesses() {
 
 export async function approveRoute(routeId: string): Promise<{ error: string | null }> {
     if (!isSupabaseConfigured) return { error: null };
-    const { error } = await supabase.from('routes').update({ status: 'publicado', published_at: new Date().toISOString() }).eq('id', routeId);
-    return { error: error?.message || null };
+    const { data, error } = await supabase.from('routes').update({ status: 'publicado', published_at: new Date().toISOString() }).eq('id', routeId).select('id');
+    if (error) return { error: error.message };
+    if (!data || data.length === 0) return { error: 'No se pudo actualizar. Revisa los permisos (RLS) en Supabase Dashboard.' };
+    return { error: null };
 }
 
 export async function rejectRoute(routeId: string): Promise<{ error: string | null }> {
     if (!isSupabaseConfigured) return { error: null };
-    const { error } = await supabase.from('routes').update({ status: 'rechazado' }).eq('id', routeId);
-    return { error: error?.message || null };
+    const { data, error } = await supabase.from('routes').update({ status: 'rechazado' }).eq('id', routeId).select('id');
+    if (error) return { error: error.message };
+    if (!data || data.length === 0) return { error: 'No se pudo actualizar. Revisa los permisos (RLS) en Supabase Dashboard.' };
+    return { error: null };
 }
 
 export async function approveBusiness(businessId: string): Promise<{ error: string | null }> {
     if (!isSupabaseConfigured) return { error: null };
-    const { error } = await supabase.from('businesses').update({ status: 'activo' }).eq('id', businessId);
-    return { error: error?.message || null };
+    const { data, error } = await supabase.from('businesses').update({ status: 'activo' }).eq('id', businessId).select('id');
+    if (error) return { error: error.message };
+    if (!data || data.length === 0) return { error: 'No se pudo aprobar. Revisa los permisos (RLS) en Supabase Dashboard > businesses > Policies.' };
+    return { error: null };
 }
 
 export async function rejectBusiness(businessId: string): Promise<{ error: string | null }> {
     if (!isSupabaseConfigured) return { error: null };
-    const { error } = await supabase.from('businesses').update({ status: 'rechazado' }).eq('id', businessId);
-    return { error: error?.message || null };
+    const { data, error } = await supabase.from('businesses').update({ status: 'rechazado' }).eq('id', businessId).select('id');
+    if (error) return { error: error.message };
+    if (!data || data.length === 0) return { error: 'No se pudo rechazar. Revisa los permisos (RLS) en Supabase Dashboard > businesses > Policies.' };
+    return { error: null };
 }
 
 // ─── ORDER STATUS ─────────────────────────────────────────────
 
 export async function updateOrderStatus(orderId: string, status: string): Promise<{ error: string | null }> {
     if (!isSupabaseConfigured) return { error: null };
-    const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
-    return { error: error?.message || null };
+    const { data, error } = await supabase.from('orders').update({ status }).eq('id', orderId).select('id');
+    if (error) return { error: error.message };
+    if (!data || data.length === 0) return { error: 'No se pudo actualizar el pedido. Revisa permisos RLS.' };
+    return { error: null };
 }
 
 export function subscribeToOrders(businessId: string, callback: () => void) {
@@ -677,11 +693,14 @@ export async function updateBusinessProfile(businessId: string, updates: Record<
 
 export async function updateUserStatus(userId: string, status: string): Promise<{ error: string | null }> {
     if (!isSupabaseConfigured) return { error: null };
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from('profiles')
         .update({ preferences: { suspended: status === 'suspendido' } as any })
-        .eq('id', userId);
-    return { error: error?.message || null };
+        .eq('id', userId)
+        .select('id');
+    if (error) return { error: error.message };
+    if (!data || data.length === 0) return { error: 'No se pudo actualizar. Revisa los permisos (RLS) en Supabase Dashboard.' };
+    return { error: null };
 }
 
 // ─── PROFILE SETTINGS ─────────────────────────────────────────

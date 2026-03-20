@@ -5,8 +5,9 @@ import {
   BarChart3, Shield, FileCheck, Building2, Users,
   ShoppingBag, Package, ClipboardList, Star, Store,
   PenSquare, Wallet, TrendingUp,
-  ChevronLeft, ChevronRight, Bike, Menu, X, ChevronsUpDown
+  ChevronLeft, ChevronRight, Menu, X, ChevronsUpDown
 } from "lucide-react";
+import KaeloLogo from "./KaeloLogo";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth, type UserRole } from "@/contexts/AuthContext";
 
@@ -116,7 +117,7 @@ export default function AppSidebar() {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="flex items-center gap-2 px-4 py-5 border-b border-sidebar-border">
-        <Bike className="h-7 w-7 text-primary shrink-0" />
+        <KaeloLogo className="h-8 w-8 rounded-lg shrink-0" />
         {!collapsed && (
           <motion.span
             initial={{ opacity: 0 }}

@@ -56,6 +56,10 @@ const roleProfiles: Record<UserRole, AuthUser> = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// Module-level flag to suppress auth state changes during business registration
+let _suppressAuthChange = false;
+export function setSuppressAuth(val: boolean) { _suppressAuthChange = val; }
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [currentRole, setCurrentRole] = useState<UserRole>("admin");
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -72,8 +76,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
         }
 
-        // Safety timeout — never stay loading forever
-        const timeout = setTimeout(() => setLoading(false), 5000);
+        // Safety timeout — never stay loading forever (3s max)
+        const timeout = setTimeout(() => setLoading(false), 3000);
 
         // Check existing session
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -93,6 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Listen for changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
+                // Skip auth events during business registration
+                if (_suppressAuthChange) return;
+
                 if (event === 'SIGNED_IN' && session?.user) {
                     setSupabaseUser(session.user);
                     setIsLoggedIn(true);
@@ -125,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Race the profile query against a 4-second timeout
             const result = await Promise.race([
                 supabase.from('profiles').select('*').eq('id', user.id).single(),
-                new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+                new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
             ]);
 
             const data = result && 'data' in result ? result.data : null;
@@ -194,8 +201,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setLoading(true);
-        // Safety: never stay loading longer than 8 seconds
-        const safetyTimeout = setTimeout(() => setLoading(false), 8000);
+        // Safety: never stay loading longer than 5 seconds
+        const safetyTimeout = setTimeout(() => setLoading(false), 5000);
 
         try {
             const { data, error } = await supabase.auth.signInWithPassword({
@@ -226,28 +233,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const logout = async () => {
-        // Clear React state first
+    const logout = () => {
+        // Clear React state
         setIsLoggedIn(false);
         setIsDemoMode(false);
         setSupabaseUser(null);
         setRealProfile(null);
         setUserBusiness(null);
+        setCurrentRole('creador');
 
-        if (!isDemoMode && isSupabaseConfigured) {
-            try {
-                await supabase.auth.signOut();
-            } catch {
-                // signOut failed — force clear localStorage
-            }
-        }
-
-        // Force clear Supabase session from localStorage regardless
+        // Clear Supabase session from localStorage
         Object.keys(localStorage).forEach((key) => {
             if (key.startsWith('sb-') || key.includes('supabase')) {
                 localStorage.removeItem(key);
             }
         });
+
+        // Fire-and-forget signOut (page will reload anyway)
+        if (isSupabaseConfigured) {
+            supabase.auth.signOut().catch(() => {});
+        }
     };
 
     // Use real profile if available, otherwise demo profile

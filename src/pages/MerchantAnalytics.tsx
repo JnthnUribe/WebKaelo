@@ -1,30 +1,18 @@
-import { DollarSign, ShoppingBag, TrendingUp, Clock, Package } from "lucide-react";
+import { DollarSign, ShoppingBag, TrendingUp, Clock, BarChart3 } from "lucide-react";
 import StatCard from "@/components/StatCard";
 import { formatMXN } from "@/lib/mockData";
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
+import { useAuth } from "@/contexts/AuthContext";
+import PendingApproval from "@/components/PendingApproval";
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 const dailyRevenue = [
     { day: "Lun", revenue: 850, orders: 5 },
     { day: "Mar", revenue: 1320, orders: 8 },
-    { day: "Mié", revenue: 480, orders: 3 },
+    { day: "Mie", revenue: 480, orders: 3 },
     { day: "Jue", revenue: 1100, orders: 7 },
     { day: "Vie", revenue: 1950, orders: 12 },
-    { day: "Sáb", revenue: 2400, orders: 15 },
+    { day: "Sab", revenue: 2400, orders: 15 },
     { day: "Dom", revenue: 1500, orders: 9 },
-];
-
-const weeklyTrend = [
-    { week: "Sem 1", revenue: 5200 },
-    { week: "Sem 2", revenue: 6800 },
-    { week: "Sem 3", revenue: 4300 },
-    { week: "Sem 4", revenue: 7100 },
-];
-
-const topProducts = [
-    { name: "Kit Energético", qty: 45, revenue: 5400 },
-    { name: "Café de Olla", qty: 62, revenue: 2790 },
-    { name: "Pan de Cazón", qty: 28, revenue: 2660 },
-    { name: "Horchata con Coco", qty: 35, revenue: 1925 },
 ];
 
 const hourlyPeak = [
@@ -38,25 +26,60 @@ const hourlyPeak = [
     { hour: "2-3", orders: 3 },
 ];
 
+const topProducts = [
+    { name: "Kit Energetico", qty: 45, revenue: 5400 },
+    { name: "Cafe de Olla", qty: 62, revenue: 2790 },
+    { name: "Pan de Cazon", qty: 28, revenue: 2660 },
+    { name: "Horchata con Coco", qty: 35, revenue: 1925 },
+];
+
 const paymentMethods = [
     { name: "Tarjeta", value: 65, color: "hsl(var(--primary))" },
     { name: "Efectivo", value: 30, color: "hsl(var(--accent))" },
     { name: "Wallet", value: 5, color: "hsl(var(--secondary))" },
 ];
 
-export default function MerchantAnalytics() {
+function EmptyMerchantAnalytics() {
     return (
         <div className="space-y-6 animate-fade-in">
             <div>
-                <h1 className="text-2xl font-bold">📈 Analytics del Comercio</h1>
-                <p className="text-muted-foreground text-sm">Rendimiento de Café Cenote · Febrero 2026</p>
+                <h1 className="text-2xl font-bold">Analytics del Comercio</h1>
+                <p className="text-muted-foreground text-sm">Rendimiento de tu negocio</p>
+            </div>
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="inline-flex p-4 rounded-full bg-muted/50 mb-4">
+                    <BarChart3 className="h-12 w-12 text-muted-foreground" />
+                </div>
+                <h2 className="text-xl font-bold mb-2">Sin datos de analytics</h2>
+                <p className="text-muted-foreground max-w-md">
+                    Los analytics se generaran automaticamente cuando recibas pedidos y ventas desde la app de Kaelo.
+                </p>
+            </div>
+        </div>
+    );
+}
+
+export default function MerchantAnalytics() {
+    const { isDemoMode, userBusiness } = useAuth();
+
+    if (userBusiness?.status === 'pendiente' && !isDemoMode) {
+        return <PendingApproval businessName={userBusiness?.name} />;
+    }
+
+    if (!isDemoMode) return <EmptyMerchantAnalytics />;
+
+    return (
+        <div className="space-y-6 animate-fade-in">
+            <div>
+                <h1 className="text-2xl font-bold">Analytics del Comercio</h1>
+                <p className="text-muted-foreground text-sm">Rendimiento de Cafe Cenote - Febrero 2026</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard title="Revenue del mes" value={formatMXN(9600)} icon={DollarSign} color="primary" change={{ value: 18.5, label: "vs enero" }} />
                 <StatCard title="Total pedidos" value="59" icon={ShoppingBag} color="accent" change={{ value: 12.3 }} />
                 <StatCard title="Ticket promedio" value={formatMXN(162.7)} icon={TrendingUp} color="secondary" change={{ value: 5.1 }} />
-                <StatCard title="Tiempo promedio" value="18 min" icon={Clock} color="success" change={{ value: -8.2, label: "más rápido" }} />
+                <StatCard title="Tiempo promedio" value="18 min" icon={Clock} color="success" change={{ value: -8.2, label: "mas rapido" }} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -76,7 +99,7 @@ export default function MerchantAnalytics() {
 
                 {/* Hourly peak */}
                 <div className="bg-card border border-border rounded-xl p-5 shadow-card">
-                    <h3 className="font-semibold mb-4">🕐 Horas Pico</h3>
+                    <h3 className="font-semibold mb-4">Horas Pico</h3>
                     <ResponsiveContainer width="100%" height={240}>
                         <BarChart data={hourlyPeak}>
                             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -92,7 +115,7 @@ export default function MerchantAnalytics() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Top products */}
                 <div className="lg:col-span-2 bg-card border border-border rounded-xl p-5 shadow-card">
-                    <h3 className="font-semibold mb-4">🏆 Productos Más Vendidos</h3>
+                    <h3 className="font-semibold mb-4">Productos Mas Vendidos</h3>
                     <div className="space-y-3">
                         {topProducts.map((p, i) => (
                             <div key={p.name} className="flex items-center gap-4">
@@ -116,7 +139,7 @@ export default function MerchantAnalytics() {
 
                 {/* Payment methods */}
                 <div className="bg-card border border-border rounded-xl p-5 shadow-card">
-                    <h3 className="font-semibold mb-4">💳 Métodos de Pago</h3>
+                    <h3 className="font-semibold mb-4">Metodos de Pago</h3>
                     <ResponsiveContainer width="100%" height={180}>
                         <PieChart>
                             <Pie data={paymentMethods} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={4} dataKey="value" stroke="none">

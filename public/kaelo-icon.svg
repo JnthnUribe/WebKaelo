@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="pinGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2dd4bf"/>
+      <stop offset="100%" stop-color="#0d9488"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="512" height="512" rx="100" fill="#1e293b"/>
+  <!-- Map pin shape -->
+  <path d="M256 420 C256 420 150 290 150 210 C150 152 198 100 256 100 C314 100 362 152 362 210 C362 290 256 420 256 420Z" fill="url(#pinGrad)"/>
+  <!-- White circle border -->
+  <circle cx="256" cy="210" r="70" fill="none" stroke="white" stroke-width="12"/>
+  <!-- Inner circle -->
+  <circle cx="256" cy="210" r="12" fill="white"/>
+  <!-- Crosshair lines -->
+  <line x1="256" y1="150" x2="256" y2="190" stroke="white" stroke-width="8" stroke-linecap="round"/>
+  <line x1="256" y1="230" x2="256" y2="270" stroke="white" stroke-width="8" stroke-linecap="round"/>
+  <line x1="196" y1="210" x2="236" y2="210" stroke="white" stroke-width="8" stroke-linecap="round"/>
+  <line x1="276" y1="210" x2="316" y2="210" stroke="white" stroke-width="8" stroke-linecap="round"/>
+</svg>

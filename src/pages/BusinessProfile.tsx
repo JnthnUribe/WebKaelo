@@ -19,7 +19,7 @@ const days = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Do
 const dayKeys = ["lun", "mar", "mie", "jue", "vie", "sab", "dom"];
 
 export default function BusinessProfile() {
-    const { userBusiness } = useAuth();
+    const { userBusiness, isDemoMode } = useAuth();
     const businessId = userBusiness?.id;
     const [saving, setSaving] = useState(false);
 
@@ -83,7 +83,7 @@ export default function BusinessProfile() {
         });
     }, [businessId]);
 
-    if (userBusiness?.status === 'pendiente') {
+    if (userBusiness?.status === 'pendiente' && !isDemoMode) {
         return <PendingApproval businessName={userBusiness?.name} />;
     }
 

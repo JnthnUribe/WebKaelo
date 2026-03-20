@@ -1,7 +1,8 @@
-import { DollarSign, TrendingUp, ShoppingBag, Users, Route, Store } from "lucide-react";
+import { DollarSign, TrendingUp, ShoppingBag, Route, BarChart3 } from "lucide-react";
 import StatCard from "@/components/StatCard";
-import { formatMXN, formatNumber } from "@/lib/mockData";
-import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
+import { formatMXN } from "@/lib/mockData";
+import { useAuth } from "@/contexts/AuthContext";
+import { AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 
 const revenueBySource = [
     { month: "Sep", rutas: 4500, pedidos: 2800, total: 7300 },
@@ -33,12 +34,36 @@ const kpiCards = [
     { title: "Tasa de Refund", value: "2.1%", icon: Route, change: -0.5, color: "success" as const },
 ];
 
-export default function AdminAnalytics() {
+function EmptyAnalytics() {
     return (
         <div className="space-y-6 animate-fade-in">
             <div>
-                <h1 className="text-2xl font-bold">📈 Analytics de Plataforma</h1>
-                <p className="text-muted-foreground text-sm">Métricas detalladas de revenue y rendimiento</p>
+                <h1 className="text-2xl font-bold">Analytics de Plataforma</h1>
+                <p className="text-muted-foreground text-sm">Metricas detalladas de revenue y rendimiento</p>
+            </div>
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="inline-flex p-4 rounded-full bg-muted/50 mb-4">
+                    <BarChart3 className="h-12 w-12 text-muted-foreground" />
+                </div>
+                <h2 className="text-xl font-bold mb-2">Sin datos de analytics</h2>
+                <p className="text-muted-foreground max-w-md">
+                    Los analytics se generaran automaticamente cuando haya transacciones, ventas de rutas y actividad en la plataforma.
+                </p>
+            </div>
+        </div>
+    );
+}
+
+export default function AdminAnalytics() {
+    const { isDemoMode } = useAuth();
+
+    if (!isDemoMode) return <EmptyAnalytics />;
+
+    return (
+        <div className="space-y-6 animate-fade-in">
+            <div>
+                <h1 className="text-2xl font-bold">Analytics de Plataforma</h1>
+                <p className="text-muted-foreground text-sm">Metricas detalladas de revenue y rendimiento</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -68,7 +93,7 @@ export default function AdminAnalytics() {
                         <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))' }} formatter={(v: any) => formatMXN(v)} />
                         <Legend />
                         <Area type="monotone" dataKey="rutas" name="Venta de Rutas" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#rutasGrad)" />
-                        <Area type="monotone" dataKey="pedidos" name="Comisión Pedidos" stroke="hsl(var(--accent))" strokeWidth={2} fill="url(#pedidosGrad)" />
+                        <Area type="monotone" dataKey="pedidos" name="Comision Pedidos" stroke="hsl(var(--accent))" strokeWidth={2} fill="url(#pedidosGrad)" />
                     </AreaChart>
                 </ResponsiveContainer>
             </div>
@@ -76,7 +101,7 @@ export default function AdminAnalytics() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Top routes */}
                 <div className="lg:col-span-2 bg-card border border-border rounded-xl p-5 shadow-card">
-                    <h3 className="font-semibold mb-4">🏆 Top Rutas por Revenue</h3>
+                    <h3 className="font-semibold mb-4">Top Rutas por Revenue</h3>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
@@ -84,7 +109,7 @@ export default function AdminAnalytics() {
                                     <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Ruta</th>
                                     <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Ventas</th>
                                     <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Revenue</th>
-                                    <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Conversión</th>
+                                    <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Conversion</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -105,7 +130,7 @@ export default function AdminAnalytics() {
 
                 {/* Users by type */}
                 <div className="bg-card border border-border rounded-xl p-5 shadow-card">
-                    <h3 className="font-semibold mb-4">👥 Usuarios por Tipo</h3>
+                    <h3 className="font-semibold mb-4">Usuarios por Tipo</h3>
                     <ResponsiveContainer width="100%" height={200}>
                         <PieChart>
                             <Pie data={usersByType} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={4} dataKey="value" stroke="none">

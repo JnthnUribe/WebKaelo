@@ -54,17 +54,19 @@ export default function Layout() {
 
   const handleLogout = async () => {
     setMenuOpen(false);
+    // Clear Supabase session from localStorage FIRST
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('sb-') || key.includes('supabase')) {
+        localStorage.removeItem(key);
+      }
+    });
     try {
       await logout();
     } catch {
-      // Force clear even if logout throws
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith('sb-') || key.includes('supabase')) {
-          localStorage.removeItem(key);
-        }
-      });
+      // ignore — localStorage already cleared
     }
-    window.location.href = "/";
+    // Force full page reload to guarantee login screen
+    window.location.replace("/");
   };
 
   return (
