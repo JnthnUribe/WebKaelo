@@ -33,6 +33,7 @@ export default function BusinessProfile() {
         email: "",
         website: "",
         acceptsPreOrders: true,
+        acceptsCash: true,
         minimumOrder: 50,
         advanceHours: 2,
     });
@@ -62,6 +63,7 @@ export default function BusinessProfile() {
                 email: data.email || "",
                 website: data.website || "",
                 acceptsPreOrders: data.accepts_advance_orders ?? true,
+                acceptsCash: data.accepts_cash ?? true,
                 minimumOrder: data.minimum_order_amount || 50,
                 advanceHours: data.advance_order_hours || 2,
             });
@@ -114,6 +116,7 @@ export default function BusinessProfile() {
             email: profile.email,
             website: profile.website,
             accepts_advance_orders: profile.acceptsPreOrders,
+            accepts_cash: profile.acceptsCash,
             minimum_order_amount: profile.minimumOrder,
             advance_order_hours: profile.advanceHours,
             business_hours: businessHours,
@@ -236,10 +239,23 @@ export default function BusinessProfile() {
             <section className="bg-card border border-border rounded-xl p-5 shadow-card space-y-4">
                 <h2 className="font-semibold">Configuracion de Pedidos</h2>
                 <div className="flex items-center justify-between py-1">
-                    <span className="text-sm">Aceptar pre-ordenes</span>
+                    <div>
+                        <span className="text-sm">Aceptar pre-órdenes</span>
+                        <p className="text-xs text-muted-foreground">Los ciclistas pueden ordenar antes de llegar</p>
+                    </div>
                     <button onClick={() => setProfile(p => ({ ...p, acceptsPreOrders: !p.acceptsPreOrders }))}
                         className={`w-10 h-5 rounded-full transition-colors ${profile.acceptsPreOrders ? "bg-primary" : "bg-muted"}`}>
                         <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${profile.acceptsPreOrders ? "translate-x-5" : "translate-x-0.5"}`} />
+                    </button>
+                </div>
+                <div className="flex items-center justify-between py-1">
+                    <div>
+                        <span className="text-sm">Aceptar pago en efectivo</span>
+                        <p className="text-xs text-muted-foreground">El cliente paga al recoger su pedido</p>
+                    </div>
+                    <button onClick={() => setProfile(p => ({ ...p, acceptsCash: !p.acceptsCash }))}
+                        className={`w-10 h-5 rounded-full transition-colors ${profile.acceptsCash ? "bg-primary" : "bg-muted"}`}>
+                        <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${profile.acceptsCash ? "translate-x-5" : "translate-x-0.5"}`} />
                     </button>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
