@@ -1,10 +1,44 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
-import { Sun, Moon, Bell, ChevronRight, Settings, LogOut } from "lucide-react";
+import { Sun, Moon, Bell, ChevronRight, Settings, LogOut, ShoppingBag, Map, Star, Store } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
 import AppSidebar from "./AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchNotifications, markNotificationsRead, fetchUserPreferences, type NotificationItem } from "@/lib/supabaseService";
+
+// Tipos de notificación que corresponden a cada rol
+const ROLE_NOTIF_TYPES: Record<string, string[]> = {
+  admin:    [], // sin filtro — ve todo
+  comercio: ["orden_recibida", "nueva_resena", "sistema"],
+  creador:  ["ruta_comprada", "pago_recibido", "sistema"],
+};
+
+const DEMO_NOTIFICATIONS: Record<string, NotificationItem[]> = {
+  admin: [
+    { id: "d1", title: "Negocios pendientes", body: "2 negocios pendientes de aprobación", notification_type: "negocio_pendiente", is_read: false, created_at: new Date().toISOString(), related_business_id: null, related_order_id: null, related_route_id: null },
+    { id: "d2", title: "Ruta para moderar", body: "1 ruta en revisión esperando moderación", notification_type: "ruta_pendiente", is_read: false, created_at: new Date().toISOString(), related_business_id: null, related_order_id: null, related_route_id: null },
+  ],
+  comercio: [
+    { id: "d3", title: "Nuevo pedido", body: "Nuevo pedido #0042 recibido", notification_type: "orden_recibida", is_read: false, created_at: new Date().toISOString(), related_business_id: null, related_order_id: null, related_route_id: null },
+    { id: "d4", title: "Nueva reseña", body: "Nueva reseña ⭐⭐⭐⭐⭐ de un cliente", notification_type: "nueva_resena", is_read: false, created_at: new Date().toISOString(), related_business_id: null, related_order_id: null, related_route_id: null },
+  ],
+  creador: [
+    { id: "d5", title: "Ruta aprobada", body: "Tu ruta 'Ruta Cenotes' fue aprobada", notification_type: "ruta_comprada", is_read: true, created_at: new Date().toISOString(), related_business_id: null, related_order_id: null, related_route_id: null },
+  ],
+};
+
+function notificationIcon(type: string) {
+  switch (type) {
+    case "orden_recibida":   return <ShoppingBag className="h-3.5 w-3.5 text-primary" />;
+    case "ruta_comprada":
+    case "pago_recibido":
+    case "ruta_pendiente":   return <Map className="h-3.5 w-3.5 text-primary" />;
+    case "nueva_resena":     return <Star className="h-3.5 w-3.5 text-primary" />;
+    case "negocio_pendiente": return <Store className="h-3.5 w-3.5 text-primary" />;
+    default:                 return <Bell className="h-3.5 w-3.5 text-primary" />;
+  }
+}
 
 const breadcrumbMap: Record<string, string> = {
   "/admin": "Dashboard",
@@ -34,9 +68,13 @@ export default function Layout() {
   const { theme, setTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, currentRole, logout } = useAuth();
+  const { user, currentRole, logout, isDemoMode, supabaseUser } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   const pageName = breadcrumbMap[location.pathname] || "Kaelo";
   const isDark = theme === "dark";
@@ -51,6 +89,57 @@ export default function Layout() {
     if (menuOpen) document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [menuOpen]);
+
+  // Close notifications on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    if (notifOpen) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [notifOpen]);
+
+  const openNotifications = async () => {
+    if (notifOpen) { setNotifOpen(false); return; }
+    setNotifOpen(true);
+
+    if (isDemoMode) {
+      const mocks = (DEMO_NOTIFICATIONS[currentRole] ?? []).map((n) => ({ ...n, is_read: true }));
+      setNotifications(mocks);
+      return;
+    }
+
+    if (!supabaseUser?.id) return;
+    setNotifLoading(true);
+    const roleTypes = ROLE_NOTIF_TYPES[currentRole] ?? [];
+    const prefs = await fetchUserPreferences(supabaseUser.id);
+    const notifPrefs = prefs?.notifications;
+
+    let typesToFetch: string[] | undefined;
+    if (roleTypes.length > 0) {
+      let filtered = [...roleTypes];
+      if (notifPrefs) {
+        if (notifPrefs.pedidos === false)    filtered = filtered.filter(t => t !== 'orden_recibida' && t !== 'ruta_comprada');
+        if (notifPrefs.moderacion === false) filtered = filtered.filter(t => t !== 'sistema');
+        if (notifPrefs.pagos === false)      filtered = filtered.filter(t => t !== 'pago_recibido');
+      }
+      if (filtered.length === 0) {
+        setNotifications([]);
+        setNotifLoading(false);
+        return;
+      }
+      typesToFetch = filtered;
+    }
+
+    const items = await fetchNotifications(supabaseUser.id, typesToFetch);
+    setNotifications(items);
+    setNotifLoading(false);
+    markNotificationsRead(supabaseUser.id); // fire-and-forget
+  };
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   const handleLogout = async () => {
     setMenuOpen(false);
@@ -105,10 +194,77 @@ export default function Layout() {
             </button>
 
             {/* Notifications */}
-            <button className="relative p-2 rounded-lg hover:bg-muted transition-colors">
-              <Bell className="h-4.5 w-4.5" />
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent" />
-            </button>
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={openNotifications}
+                className="relative p-2 rounded-lg hover:bg-muted transition-colors"
+                aria-label="Notificaciones"
+              >
+                <Bell className="h-4.5 w-4.5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-accent flex items-center justify-center text-[9px] font-bold text-white leading-none">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {notifOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-full mt-2 w-80 bg-card border border-border rounded-xl shadow-lg overflow-hidden z-50"
+                  >
+                    <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                      <p className="text-sm font-semibold">Notificaciones</p>
+                      {unreadCount > 0 && (
+                        <span className="text-xs text-muted-foreground">{unreadCount} sin leer</span>
+                      )}
+                    </div>
+
+                    <div className="max-h-80 overflow-y-auto">
+                      {notifLoading ? (
+                        <div className="px-4 py-6 text-center text-sm text-muted-foreground">Cargando...</div>
+                      ) : notifications.length === 0 ? (
+                        <div className="px-4 py-8 text-center">
+                          <Bell className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                          <p className="text-sm text-muted-foreground">Sin notificaciones</p>
+                        </div>
+                      ) : (
+                        notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            className={`flex items-start gap-3 px-4 py-3 border-b border-border last:border-0 transition-colors ${
+                              !n.is_read ? "bg-primary/5" : "hover:bg-muted"
+                            }`}
+                          >
+                            <div className="mt-0.5 flex-shrink-0 p-1.5 rounded-md bg-primary/10">
+                              {notificationIcon(n.notification_type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold truncate">{n.title}</p>
+                              <p className="text-xs text-muted-foreground leading-snug mt-0.5">{n.body}</p>
+                              {n.created_at && (
+                                <p className="text-[10px] text-muted-foreground/60 mt-1">
+                                  {new Date(n.created_at).toLocaleDateString("es-MX", {
+                                    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                                  })}
+                                </p>
+                              )}
+                            </div>
+                            {!n.is_read && (
+                              <div className="mt-1.5 h-2 w-2 rounded-full bg-accent flex-shrink-0" />
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* Avatar + dropdown menu */}
             <div className="relative" ref={menuRef}>

@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { updateProfile, updatePassword } from "@/lib/supabaseService";
+import { updateProfile, updatePassword, fetchUserPreferences, updateUserPreferences } from "@/lib/supabaseService";
 
 const roleLabels: Record<string, string> = {
   admin: "Administrador de Plataforma",
@@ -11,20 +11,31 @@ const roleLabels: Record<string, string> = {
 };
 
 export default function SettingsPage() {
-  const { user, currentRole, isDemoMode } = useAuth();
+  const { user, currentRole, isDemoMode, supabaseUser } = useAuth();
   const [name, setName] = useState(user.name);
   const [email] = useState(user.email);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [notifications, setNotifications] = useState({ pedidos: true, moderacion: true, pagos: true, emails: true });
+  const [notifications, setNotifications] = useState({ pedidos: true, moderacion: true, pagos: true });
   const [privacy, setPrivacy] = useState({ publicProfile: true });
   const [saving, setSaving] = useState(false);
+
+  const uid = supabaseUser?.id;
+
+  useEffect(() => {
+    if (!uid || isDemoMode) return;
+    fetchUserPreferences(uid).then((prefs) => {
+      if (!prefs) return;
+      if (prefs.notifications && typeof prefs.notifications === 'object' && Object.keys(prefs.notifications).length > 0)
+        setNotifications(prev => ({ ...prev, ...prefs.notifications }));
+      if (prefs.publicProfile !== undefined) setPrivacy({ publicProfile: prefs.publicProfile });
+    });
+  }, [uid]);
 
   const notifLabels: Record<string, string> = {
     pedidos: "Nuevos pedidos",
     moderacion: "Alertas de moderacion",
     pagos: "Pagos y retiros",
-    emails: "Notificaciones por email",
   };
 
   const handleSave = async () => {
@@ -59,6 +70,21 @@ export default function SettingsPage() {
       }
       setCurrentPassword("");
       setNewPassword("");
+    }
+
+    if (!uid) {
+      setSaving(false);
+      toast.error("No se pudo identificar al usuario");
+      return;
+    }
+    const prefResult = await updateUserPreferences(uid, {
+      notifications,
+      publicProfile: privacy.publicProfile,
+    });
+    if (prefResult.error) {
+      setSaving(false);
+      toast.error(`Error al guardar preferencias: ${prefResult.error}`);
+      return;
     }
 
     setSaving(false);

@@ -711,6 +711,20 @@ export async function updateProfile(userId: string, updates: { full_name?: strin
     return { error: error?.message || null };
 }
 
+export async function fetchUserPreferences(userId: string): Promise<Record<string, any> | null> {
+    if (!isSupabaseConfigured) return null;
+    const { data } = await supabase.from('profiles').select('preferences').eq('id', userId).single();
+    return (data?.preferences as Record<string, any>) || null;
+}
+
+export async function updateUserPreferences(userId: string, preferences: Record<string, any>): Promise<{ error: string | null }> {
+    if (!isSupabaseConfigured) return { error: null };
+    const { data: current } = await supabase.from('profiles').select('preferences').eq('id', userId).single();
+    const merged = { ...(current?.preferences as object || {}), ...preferences };
+    const { error } = await supabase.from('profiles').update({ preferences: merged }).eq('id', userId);
+    return { error: error?.message || null };
+}
+
 export async function updatePassword(newPassword: string): Promise<{ error: string | null }> {
     if (!isSupabaseConfigured) return { error: 'Supabase no configurado' };
     const { error } = await supabase.auth.updateUser({ password: newPassword });
@@ -741,6 +755,59 @@ export async function fetchWalletData(creatorId: string) {
         const balance = transactions.reduce((sum: number, t: any) => sum + t.amount, 0);
         return { balance, transactions };
     } catch { return null; }
+}
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  body: string;
+  notification_type: string; // "order" | "route" | "review" | "business" | "system"
+  is_read: boolean;
+  created_at: string | null;
+  related_business_id: string | null;
+  related_order_id: string | null;
+  related_route_id: string | null;
+}
+
+export async function fetchNotifications(userId: string, types?: string[]): Promise<NotificationItem[]> {
+  if (!isSupabaseConfigured || !userId) return [];
+  try {
+    let query = supabase
+      .from('notifications')
+      .select('id, title, body, notification_type, is_read, created_at, related_business_id, related_order_id, related_route_id')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (types && types.length > 0) {
+      query = query.in('notification_type', types);
+    }
+    const { data, error } = await query;
+    if (error || !data) return [];
+    return data.map((n) => ({
+      id: n.id,
+      title: n.title,
+      body: n.body,
+      notification_type: n.notification_type,
+      is_read: n.is_read ?? false,
+      created_at: n.created_at,
+      related_business_id: n.related_business_id,
+      related_order_id: n.related_order_id,
+      related_route_id: n.related_route_id,
+    }));
+  } catch { return []; }
+}
+
+export async function markNotificationsRead(userId: string): Promise<void> {
+  if (!isSupabaseConfigured || !userId) return;
+  try {
+    await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', userId)
+      .eq('is_read', false);
+  } catch { /* silent */ }
 }
 
 // ─── HELPERS ───────────────────────────────────────────────────
