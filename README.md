@@ -1,73 +1,116 @@
-# Welcome to your Lovable project
+# WebKaelo — Dashboard Web
 
-## Project info
+Panel de administración y gestión para la plataforma **Kaelo**, una aplicación de rutas ciclistas y turísticas en Yucatán, México. Conecta administradores, comercios locales y creadores de rutas en una sola interfaz.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+---
 
-## How can I edit this code?
+## Roles y funcionalidades
 
-There are several ways of editing your application.
+| Rol | Acceso |
+|-----|--------|
+| **Admin** | Panel general · Gestión de usuarios · Moderación de rutas y comercios · Analytics |
+| **Comercio** | Dashboard · Productos · Pedidos · Reseñas · Perfil del negocio · Analytics |
+| **Creador** | Mis rutas · Wallet · Analytics |
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Stack tecnológico
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Framework:** React 18 + TypeScript
+- **Build:** Vite
+- **Estilos:** Tailwind CSS + shadcn/ui + Radix UI
+- **Backend:** Supabase (Auth, PostgreSQL, RLS, Storage)
+- **Estado / Data fetching:** TanStack React Query
+- **Animaciones:** Framer Motion
+- **Gráficas:** Recharts
+- **Formularios:** React Hook Form + Zod
+- **Tests:** Vitest + Testing Library
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Estructura del proyecto
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```
+src/
+├── components/       # Componentes reutilizables (Layout, RoleSelector, etc.)
+├── contexts/         # AuthContext con RBAC y modo demo
+├── lib/              # supabaseService — todas las llamadas a Supabase
+├── pages/
+│   ├── AdminPanel.tsx
+│   ├── AdminAnalytics.tsx
+│   ├── UserManagement.tsx
+│   ├── RouteModeration.tsx
+│   ├── BusinessModeration.tsx
+│   ├── MerchantDashboard.tsx
+│   ├── ProductManagement.tsx
+│   ├── OrderManagement.tsx
+│   ├── MerchantReviews.tsx
+│   ├── BusinessProfile.tsx
+│   ├── MerchantAnalytics.tsx
+│   ├── MyRoutes.tsx
+│   ├── WalletPage.tsx
+│   ├── CreatorAnalytics.tsx
+│   └── SettingsPage.tsx
+└── App.tsx           # Routing con protección por rol
 ```
 
-**Edit a file directly in GitHub**
+---
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Instalación y desarrollo local
 
-**Use GitHub Codespaces**
+**Requisitos:** Node.js 18+ y pnpm (o npm)
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```sh
+# 1. Clonar el repositorio
+git clone <URL_DEL_REPO>
+cd WebKaelo
 
-## What technologies are used for this project?
+# 2. Instalar dependencias
+pnpm install
 
-This project is built with:
+# 3. Configurar variables de entorno
+cp .env.example .env
+# Editar .env con tus credenciales de Supabase
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+# 4. Iniciar servidor de desarrollo
+pnpm dev
+```
 
-## How can I deploy this project?
+La app estará disponible en `http://localhost:5173`.
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+---
 
-## Can I connect a custom domain to my Lovable project?
+## Variables de entorno
 
-Yes, you can!
+```env
+VITE_SUPABASE_URL=https://<tu-proyecto>.supabase.co
+VITE_SUPABASE_ANON_KEY=<tu-anon-key>
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+---
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Scripts disponibles
+
+| Comando | Descripción |
+|---------|-------------|
+| `pnpm dev` | Servidor de desarrollo con hot-reload |
+| `pnpm build` | Build de producción |
+| `pnpm preview` | Preview del build de producción |
+| `pnpm test` | Ejecutar tests |
+| `pnpm lint` | Linter (ESLint) |
+
+---
+
+## Autenticación y roles
+
+El sistema usa **Supabase Auth** (email/contraseña + Google OAuth). Tras iniciar sesión, el usuario selecciona su rol activo si tiene acceso a más de uno. Las rutas están completamente protegidas por rol — un comercio no puede acceder a rutas de admin ni de creador.
+
+Se incluye un **modo demo** que permite explorar la interfaz sin conexión a Supabase real.
+
+---
+
+## Deploy
+
+1. Ejecutar `pnpm build` para generar la carpeta `dist/`.
+2. Subir `dist/` a cualquier hosting estático: Vercel, Netlify, Cloudflare Pages, etc.
+3. Configurar las variables de entorno `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` en la plataforma de deploy.

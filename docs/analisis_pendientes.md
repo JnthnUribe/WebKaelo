@@ -52,7 +52,7 @@
 | Req. ID | Feature | Estado |
 |---------|---------|--------|
 | RF-007 | **Order History** — Paginación y filtros | ⚠️ Lista básica existe, falta paginación |
-| RF-014 | **Cash Payment Option** — Pagar en punto de recogida | ❌ No hay opción de método de pago en checkout |
+| RF-014 | **Cash Payment Option** — Pagar en punto de recogida | ⚠️ **Migración aplicada** (`businesses.accepts_cash boolean default true`, 2026-03-20). Panel web ✅ implementado (toggle en `/comercio/perfil`). **App móvil pendiente**: leer `accepts_cash` del negocio en el checkout y mostrar/ocultar la opción "Pagar en efectivo al recoger" según ese valor. |
 | RF-015 | **Activity Tracking (GPS recording)** | ⚠️ APIs existen, falta integrar con GPS real durante navegación |
 | RF-022 | **Creator Dashboard** — Estadísticas de ventas y earnings | ⚠️ Wallet API tiene `fetchWalletSummary` con stats mensuales, falta screen dedicada |
 | RF-025 | **Purchase Refunds** | ⚠️ Tipo `reembolsado` existe en payments, falta flujo de UI para solicitar reembolso |
@@ -67,7 +67,16 @@
 
 ### Business Module (Web Dashboard) — RF-101 a RF-108
 
-> El **dashboard web para comercios** es un proyecto separado. Todos los RF-1xx están pendientes desde el lado web.
+| Req. ID | Feature | Estado |
+|---------|---------|--------|
+| RF-101 | Business Registration | ✅ Implementado |
+| RF-102 | Product Management (CRUD) | ✅ Implementado |
+| RF-103 | Order Queue en tiempo real | ✅ Implementado |
+| RF-104 | Order Status Updates | ✅ Implementado |
+| RF-105 | Analytics básicos | ✅ Implementado |
+| RF-106 | Notificaciones de nuevos pedidos | ✅ Implementado (bell dropdown) |
+| RF-107 | Configurar métodos de pago (efectivo/online) | ✅ Implementado (toggle en `/comercio/perfil`) — ver nota RF-014 para pendiente en app móvil |
+| RF-108 | Ver contacto del cliente en pedido | ⚠️ Parcial — depende del campo visible en `OrderManagement` |
 
 ---
 
