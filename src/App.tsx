@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
+import RoleSelector from "@/components/RoleSelector";
 
 // Pages
 import LoginPage from "./pages/LoginPage";
@@ -28,7 +29,7 @@ import SettingsPage from "./pages/SettingsPage";
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { isLoggedIn, currentRole, loading } = useAuth();
+  const { isLoggedIn, currentRole, loading, needsRoleSelection } = useAuth();
 
   // Show nothing while checking session — prevents flash of wrong page
   if (loading) {
@@ -45,6 +46,10 @@ function AppRoutes() {
         <Route path="*" element={<LoginPage />} />
       </Routes>
     );
+  }
+
+  if (needsRoleSelection) {
+    return <RoleSelector />;
   }
 
   // Redirect to role-specific home

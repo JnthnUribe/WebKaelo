@@ -26,6 +26,9 @@ interface AuthContextType {
     setCurrentRole: (role: UserRole) => void;
     isLoggedIn: boolean;
     isDemoMode: boolean;
+    needsRoleSelection: boolean;
+    availableRoles: UserRole[];
+    selectRole: (role: UserRole) => void;
     login: (role: UserRole) => void;
     loginWithEmail: (email: string, password: string) => Promise<{ error: string | null }>;
     logout: () => void;
@@ -68,6 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [realProfile, setRealProfile] = useState<AuthUser | null>(null);
     const [userBusiness, setUserBusiness] = useState<UserBusiness | null>(null);
     const [loading, setLoading] = useState(true);
+    const [needsRoleSelection, setNeedsRoleSelection] = useState(false);
+    const [availableRoles, setAvailableRoles] = useState<UserRole[]>([]);
 
     // Listen for Supabase auth changes
     useEffect(() => {
@@ -142,6 +147,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                 if (user.email?.endsWith('@kaelo.mx')) {
                     role = 'admin';
+                } else if (data.is_business_owner && data.is_creator) {
+                    // Dual-role user: let them choose
+                    const roles: UserRole[] = ['comercio', 'creador'];
+                    setAvailableRoles(roles);
+                    setNeedsRoleSelection(true);
+                    role = 'comercio'; // default while they choose
                 } else if (data.is_business_owner) {
                     role = 'comercio';
                 }
@@ -183,6 +194,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setCurrentRole(fb.role);
         }
     }
+
+    const selectRole = (role: UserRole) => {
+        setCurrentRole(role);
+        setNeedsRoleSelection(false);
+    };
 
     // Demo login (instant, no real auth)
     const login = (role: UserRole) => {
@@ -241,6 +257,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRealProfile(null);
         setUserBusiness(null);
         setCurrentRole('creador');
+        setNeedsRoleSelection(false);
+        setAvailableRoles([]);
 
         // Clear Supabase session from localStorage
         Object.keys(localStorage).forEach((key) => {
@@ -267,11 +285,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 supabaseUser,
                 userBusiness,
                 currentRole,
-                setCurrentRole: (role) => {
-                    setCurrentRole(role);
-                },
+                setCurrentRole: (role) => { setCurrentRole(role); },
                 isLoggedIn,
                 isDemoMode,
+                needsRoleSelection,
+                availableRoles,
+                selectRole,
                 login,
                 loginWithEmail,
                 logout,
