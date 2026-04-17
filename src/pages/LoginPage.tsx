@@ -49,9 +49,10 @@ const slideVariants = {
 };
 
 export default function LoginPage() {
-    const { login, loginWithEmail, loading: authLoading } = useAuth();
+    const { login, loginWithEmail, loginWithGoogle, loading: authLoading } = useAuth();
     const [view, setView] = useState<View>("welcome");
     const [loginLoading, setLoginLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
     const [regLoading, setRegLoading] = useState(false);
     const [direction, setDirection] = useState(0);
     const [showPw, setShowPw] = useState(false);
@@ -93,7 +94,15 @@ export default function LoginPage() {
         }
     };
 
-    const handleGoogle = () => { toast.info("Google Sign-In próximamente. Usa tu email y contraseña."); };
+    const handleGoogle = async () => {
+        setGoogleLoading(true);
+        const result = await loginWithGoogle();
+        // If there's an error, show it (on success, the page redirects to Google)
+        if (result.error) {
+            toast.error(`Error con Google: ${result.error}`);
+            setGoogleLoading(false);
+        }
+    };
 
     const handleRegStep1 = (e: React.FormEvent) => {
         e.preventDefault();
@@ -270,9 +279,13 @@ export default function LoginPage() {
                                         <p className="text-muted-foreground text-sm mb-5">Usa tus credenciales de Kaelo</p>
 
                                         {/* Google */}
-                                        <button onClick={handleGoogle}
-                                            className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl bg-white dark:bg-neutral-800 border border-border hover:bg-muted/50 transition-colors font-medium text-sm shadow-sm mb-3">
-                                            <GoogleIcon /> Continuar con Google
+                                        <button onClick={handleGoogle} disabled={googleLoading}
+                                            className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl bg-white dark:bg-neutral-800 border border-border hover:bg-muted/50 transition-colors font-medium text-sm shadow-sm mb-3 disabled:opacity-60">
+                                            {googleLoading ? (
+                                                <><Loader2 className="h-4 w-4 animate-spin" /> Conectando con Google...</>
+                                            ) : (
+                                                <><GoogleIcon /> Continuar con Google</>
+                                            )}
                                         </button>
 
                                         <div className="flex items-center gap-3 mb-3">

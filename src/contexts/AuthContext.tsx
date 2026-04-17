@@ -31,6 +31,7 @@ interface AuthContextType {
     selectRole: (role: UserRole) => void;
     login: (role: UserRole) => void;
     loginWithEmail: (email: string, password: string) => Promise<{ error: string | null }>;
+    loginWithGoogle: () => Promise<{ error: string | null }>;
     logout: () => void;
     loading: boolean;
 }
@@ -249,6 +250,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    // Google OAuth login
+    const loginWithGoogle = async () => {
+        if (!isSupabaseConfigured) {
+            return { error: 'Supabase no configurado. Usa el modo demo.' };
+        }
+
+        try {
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: `${window.location.origin}`,
+                },
+            });
+
+            if (error) {
+                return { error: error.message };
+            }
+
+            return { error: null };
+        } catch (err: any) {
+            return { error: err.message || 'Error al conectar con Google' };
+        }
+    };
+
     const logout = () => {
         // Clear React state
         setIsLoggedIn(false);
@@ -293,6 +318,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 selectRole,
                 login,
                 loginWithEmail,
+                loginWithGoogle,
                 logout,
                 loading,
             }}
